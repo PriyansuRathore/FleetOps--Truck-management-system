@@ -1,0 +1,216 @@
+create table if not exists users (
+  id text primary key,
+  name text not null,
+  email text unique not null,
+  password text not null,
+  role text not null
+);
+
+create table if not exists metrics (
+  id text primary key,
+  label text not null,
+  value text not null,
+  delta text not null
+);
+
+create table if not exists vehicles (
+  id text primary key,
+  number text unique not null,
+  model text not null,
+  driver text,
+  status text not null,
+  odometer text not null,
+  permit text not null
+);
+
+create table if not exists drivers (
+  id text primary key,
+  name text not null,
+  score integer not null,
+  hours text not null,
+  route text not null
+);
+
+create table if not exists routes (
+  id text primary key,
+  origin text not null,
+  destination text not null,
+  distance text not null,
+  eta text not null,
+  saving text not null,
+  status text not null,
+  toll_total integer default 0,
+  fuel_liters integer default 0,
+  fuel_cost integer default 0,
+  freight_revenue integer default 0,
+  driver_allowance integer default 0,
+  other_expense integer default 0
+);
+
+create table if not exists loads (
+  id text primary key,
+  item text not null,
+  truck text not null,
+  weight text not null,
+  margin text not null,
+  state text not null
+);
+
+create table if not exists maintenance (
+  id text primary key,
+  vehicle text not null,
+  task text not null,
+  service_date text not null,
+  cost text not null,
+  health text not null,
+  parts text,
+  mechanic text
+);
+
+create table if not exists tolls (
+  id text primary key,
+  route_id text,
+  plaza text not null,
+  vehicle text not null,
+  amount text not null,
+  amount_value integer default 0,
+  tag text not null
+);
+
+create table if not exists tyres (
+  id text primary key,
+  position text not null,
+  tyre text not null,
+  tread text not null,
+  rotation text not null
+);
+
+create table if not exists expenses (
+  id text primary key,
+  type text not null,
+  amount text not null,
+  period text not null,
+  trend text not null
+);
+
+create table if not exists finance_bars (
+  id text primary key,
+  label text not null,
+  value integer not null,
+  color text not null
+);
+
+create table if not exists parts (
+  id text primary key,
+  vehicle text not null,
+  name text not null,
+  stock integer not null,
+  unit_cost integer not null,
+  status text not null
+);
+
+create table if not exists truck_reports (
+  id text primary key,
+  vehicle text not null,
+  trips integer not null,
+  revenue integer not null,
+  expense integer not null,
+  profit integer not null,
+  utilization integer not null
+);
+
+alter table metrics add column if not exists owner_id text;
+alter table vehicles add column if not exists owner_id text;
+alter table drivers add column if not exists owner_id text;
+alter table routes add column if not exists owner_id text;
+alter table loads add column if not exists owner_id text;
+alter table maintenance add column if not exists owner_id text;
+alter table tolls add column if not exists owner_id text;
+alter table tyres add column if not exists owner_id text;
+alter table expenses add column if not exists owner_id text;
+alter table parts add column if not exists owner_id text;
+alter table truck_reports add column if not exists owner_id text;
+
+insert into users (id, name, email, password, role)
+values ('user-1', 'Admin Manager', 'admin@fleetops.com', 'admin123', 'Owner')
+on conflict (email) do nothing;
+
+insert into metrics (id, label, value, delta) values
+('metric-1', 'Active trucks', '74', '+8 this month'),
+('metric-2', 'On-time trips', '96.4%', '+4.2% improved'),
+('metric-3', 'Monthly profit', 'Rs.18.7L', 'Rs.2.3L saved'),
+('metric-4', 'Fleet alerts', '11', '5 critical')
+on conflict (id) do nothing;
+
+insert into routes (id, origin, destination, distance, eta, saving, status, toll_total, fuel_liters, fuel_cost, freight_revenue, driver_allowance, other_expense) values
+('route-1', 'Delhi', 'Mumbai', '1,418 km', '26h 20m', 'Rs.18,400 fuel/toll saved', 'Optimized', 7420, 405, 38880, 128000, 6200, 9400),
+('route-2', 'Jaipur', 'Ahmedabad', '678 km', '12h 05m', 'Avoids NH48 congestion', 'Live', 3860, 194, 18624, 68000, 3400, 4200),
+('route-3', 'Pune', 'Bengaluru', '842 km', '15h 45m', '2 rest stops planned', 'Planned', 5120, 241, 23136, 79000, 4100, 5600)
+on conflict (id) do nothing;
+
+insert into loads (id, item, truck, weight, margin, state) values
+('LD-4812', 'FMCG pallets', 'RJ 14 GT 2291', '18.2 T', '28%', 'In transit'),
+('LD-4831', 'Auto components', 'MH 12 QR 7314', '12.6 T', '34%', 'Loading'),
+('LD-4864', 'Cold chain cartons', 'HR 55 AX 1808', '9.8 T', '22%', 'Assigned')
+on conflict (id) do nothing;
+
+insert into drivers (id, name, score, hours, route) values
+('driver-1', 'Ramesh Yadav', 98, '6h 40m', 'Delhi - Mumbai'),
+('driver-2', 'Iqbal Khan', 94, '5h 10m', 'Jaipur - Ahmedabad'),
+('driver-3', 'Suresh Patel', 91, '7h 15m', 'Pune - Bengaluru')
+on conflict (id) do nothing;
+
+insert into vehicles (id, number, model, driver, status, odometer, permit) values
+('vehicle-1', 'RJ 14 GT 2291', 'Tata Signa 5530', 'Ramesh Yadav', 'In transit', '2,84,120 km', 'Valid'),
+('vehicle-2', 'MH 12 QR 7314', 'BharatBenz 4228R', 'Iqbal Khan', 'Loading', '1,92,450 km', 'Valid'),
+('vehicle-3', 'HR 55 AX 1808', 'Ashok Leyland AVTR', 'Suresh Patel', 'Assigned', '3,08,720 km', 'Renewal due')
+on conflict (id) do nothing;
+
+insert into maintenance (id, vehicle, task, service_date, cost, health, parts, mechanic) values
+('maint-1', 'RJ 14 GT 2291', 'Brake liner replacement', '02 Aug', 'Rs.18,500', 'Good', 'Brake liner, drum polish', 'Sharma Workshop'),
+('maint-2', 'MH 12 QR 7314', 'Engine oil service', '05 Aug', 'Rs.9,200', 'Due soon', 'Engine oil, oil filter, diesel filter', 'Highway Motors'),
+('maint-3', 'HR 55 AX 1808', 'Reefer unit check', '09 Aug', 'Rs.12,800', 'Scheduled', 'Reefer belt, coolant top-up', 'ColdLine Service')
+on conflict (id) do nothing;
+
+insert into tolls (id, route_id, plaza, vehicle, amount, amount_value, tag) values
+('toll-1', 'route-1', 'Kishangarh', 'RJ 14 GT 2291', 'Rs.1,120', 1120, 'FASTag synced'),
+('toll-2', 'route-1', 'Vadodara', 'RJ 14 GT 2291', 'Rs.1,860', 1860, 'Reconciled'),
+('toll-3', 'route-1', 'Bharuch', 'RJ 14 GT 2291', 'Rs.1,440', 1440, 'FASTag synced'),
+('toll-4', 'route-2', 'Udaipur', 'MH 12 QR 7314', 'Rs.860', 860, 'Reconciled'),
+('toll-5', 'route-2', 'Himmatnagar', 'MH 12 QR 7314', 'Rs.740', 740, 'Pending bill'),
+('toll-6', 'route-3', 'Tumakuru', 'HR 55 AX 1808', 'Rs.940', 940, 'FASTag synced')
+on conflict (id) do nothing;
+
+insert into tyres (id, position, tyre, tread, rotation) values
+('tyre-1', 'Front Left', 'TY-7294', '82%', '3,200 km left'),
+('tyre-2', 'Rear Right', 'TY-7311', '64%', 'Rotate now'),
+('tyre-3', 'Spare', 'TY-7088', '91%', 'Healthy')
+on conflict (id) do nothing;
+
+insert into expenses (id, type, amount, period, trend) values
+('expense-1', 'Fuel', 'Rs.21.8L', 'July', '+3%'),
+('expense-2', 'Tolls', 'Rs.4.7L', 'July', '-1%'),
+('expense-3', 'Maintenance', 'Rs.7.2L', 'July', '+5%')
+on conflict (id) do nothing;
+
+insert into finance_bars (id, label, value, color) values
+('finance-1', 'Freight', 88, '#0f9f8f'),
+('finance-2', 'Fuel', 46, '#d97706'),
+('finance-3', 'Toll', 24, '#2563eb'),
+('finance-4', 'Maintenance', 31, '#7c3aed'),
+('finance-5', 'Profit', 68, '#16a34a')
+on conflict (id) do nothing;
+
+insert into parts (id, vehicle, name, stock, unit_cost, status) values
+('part-1', 'RJ 14 GT 2291', 'Brake liner set', 4, 8500, 'Available'),
+('part-2', 'MH 12 QR 7314', 'Oil filter', 12, 650, 'Available'),
+('part-3', 'HR 55 AX 1808', 'Reefer belt', 2, 3200, 'Low stock'),
+('part-4', 'GJ 01 KM 9090', 'Clutch plate', 1, 14800, 'Order soon')
+on conflict (id) do nothing;
+
+insert into truck_reports (id, vehicle, trips, revenue, expense, profit, utilization) values
+('report-1', 'RJ 14 GT 2291', 18, 1280000, 734000, 546000, 92),
+('report-2', 'MH 12 QR 7314', 14, 940000, 571000, 369000, 84),
+('report-3', 'HR 55 AX 1808', 11, 790000, 498000, 292000, 77),
+('report-4', 'GJ 01 KM 9090', 9, 620000, 461000, 159000, 69)
+on conflict (id) do nothing;

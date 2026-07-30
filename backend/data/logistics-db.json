@@ -1,0 +1,828 @@
+{
+  "users": [
+    {
+      "id": "user-1",
+      "name": "Admin Manager",
+      "email": "admin@fleetops.com",
+      "password": "admin123",
+      "role": "Owner"
+    },
+    {
+      "id": "user-2",
+      "name": "Dispatch Lead",
+      "email": "dispatch@fleetops.com",
+      "password": "dispatch123",
+      "role": "Dispatcher"
+    }
+  ],
+  "metrics": [
+    {
+      "id": "metric-1",
+      "label": "Active trucks",
+      "value": "74",
+      "delta": "+8 this month",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "metric-2",
+      "label": "On-time trips",
+      "value": "96.4%",
+      "delta": "+4.2% improved",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "metric-3",
+      "label": "Monthly profit",
+      "value": "Rs.18.7L",
+      "delta": "Rs.2.3L saved",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "metric-4",
+      "label": "Fleet alerts",
+      "value": "11",
+      "delta": "5 critical",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "demo-metric-1",
+      "label": "Active trucks",
+      "value": "74",
+      "delta": "+8 this month"
+    },
+    {
+      "id": "demo-metric-2",
+      "label": "On-time trips",
+      "value": "96.4%",
+      "delta": "+4.2% improved"
+    },
+    {
+      "id": "demo-metric-3",
+      "label": "Monthly profit",
+      "value": "Rs.18.7L",
+      "delta": "Rs.2.3L saved"
+    },
+    {
+      "id": "demo-metric-4",
+      "label": "Fleet alerts",
+      "value": "11",
+      "delta": "5 critical"
+    }
+  ],
+  "routes": [
+    {
+      "id": "route-1",
+      "from": "Delhi",
+      "to": "Mumbai",
+      "km": "1,418 km",
+      "eta": "26h 20m",
+      "saving": "Rs.18,400 fuel/toll saved",
+      "status": "Optimized",
+      "tollTotal": 7420,
+      "fuelLiters": 405,
+      "fuelCost": 38880,
+      "freightRevenue": 128000,
+      "driverAllowance": 6200,
+      "otherExpense": 9400,
+      "ownerId": "user-1"
+    },
+    {
+      "id": "route-2",
+      "from": "Jaipur",
+      "to": "Ahmedabad",
+      "km": "678 km",
+      "eta": "12h 05m",
+      "saving": "Avoids NH48 congestion",
+      "status": "Live",
+      "tollTotal": 3860,
+      "fuelLiters": 194,
+      "fuelCost": 18624,
+      "freightRevenue": 68000,
+      "driverAllowance": 3400,
+      "otherExpense": 4200,
+      "ownerId": "user-1"
+    },
+    {
+      "id": "route-3",
+      "from": "Pune",
+      "to": "Bengaluru",
+      "km": "842 km",
+      "eta": "15h 45m",
+      "saving": "2 rest stops planned",
+      "status": "Planned",
+      "tollTotal": 5120,
+      "fuelLiters": 241,
+      "fuelCost": 23136,
+      "freightRevenue": 79000,
+      "driverAllowance": 4100,
+      "otherExpense": 5600,
+      "ownerId": "user-1"
+    },
+    {
+      "id": "demo-route-1",
+      "from": "Delhi",
+      "to": "Mumbai",
+      "km": "1,418 km",
+      "eta": "26h 20m",
+      "saving": "Rs.18,400 fuel/toll saved",
+      "status": "Optimized",
+      "tollTotal": 7420,
+      "fuelLiters": 405,
+      "fuelCost": 38880,
+      "freightRevenue": 128000,
+      "driverAllowance": 6200,
+      "otherExpense": 9400
+    },
+    {
+      "id": "demo-route-2",
+      "from": "Jaipur",
+      "to": "Ahmedabad",
+      "km": "678 km",
+      "eta": "12h 05m",
+      "saving": "Avoids NH48 congestion",
+      "status": "Live",
+      "tollTotal": 3860,
+      "fuelLiters": 194,
+      "fuelCost": 18624,
+      "freightRevenue": 68000,
+      "driverAllowance": 3400,
+      "otherExpense": 4200
+    },
+    {
+      "id": "demo-route-3",
+      "from": "Pune",
+      "to": "Bengaluru",
+      "km": "842 km",
+      "eta": "15h 45m",
+      "saving": "2 rest stops planned",
+      "status": "Planned",
+      "tollTotal": 5120,
+      "fuelLiters": 241,
+      "fuelCost": 23136,
+      "freightRevenue": 79000,
+      "driverAllowance": 4100,
+      "otherExpense": 5600
+    }
+  ],
+  "loads": [
+    {
+      "id": "LD-4812",
+      "item": "FMCG pallets",
+      "truck": "RJ 14 GT 2291",
+      "weight": "18.2 T",
+      "margin": "28%",
+      "state": "In transit",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "LD-4831",
+      "item": "Auto components",
+      "truck": "MH 12 QR 7314",
+      "weight": "12.6 T",
+      "margin": "34%",
+      "state": "Loading",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "LD-4864",
+      "item": "Cold chain cartons",
+      "truck": "HR 55 AX 1808",
+      "weight": "9.8 T",
+      "margin": "22%",
+      "state": "Assigned",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "demo-LD-4812",
+      "item": "FMCG pallets",
+      "truck": "RJ 14 GT 2291",
+      "weight": "18.2 T",
+      "margin": "28%",
+      "state": "In transit"
+    },
+    {
+      "id": "demo-LD-4831",
+      "item": "Auto components",
+      "truck": "MH 12 QR 7314",
+      "weight": "12.6 T",
+      "margin": "34%",
+      "state": "Loading"
+    },
+    {
+      "id": "demo-LD-4864",
+      "item": "Cold chain cartons",
+      "truck": "HR 55 AX 1808",
+      "weight": "9.8 T",
+      "margin": "22%",
+      "state": "Assigned"
+    }
+  ],
+  "drivers": [
+    {
+      "id": "driver-1",
+      "name": "Ramesh Yadav",
+      "score": 98,
+      "hours": "6h 40m",
+      "route": "Delhi - Mumbai",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "driver-2",
+      "name": "Iqbal Khan",
+      "score": 94,
+      "hours": "5h 10m",
+      "route": "Jaipur - Ahmedabad",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "driver-3",
+      "name": "Suresh Patel",
+      "score": 91,
+      "hours": "7h 15m",
+      "route": "Pune - Bengaluru",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "driver-4",
+      "name": "Vikram Singh",
+      "score": 88,
+      "hours": "4h 25m",
+      "route": "Nagpur - Hyderabad",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "demo-driver-1",
+      "name": "Ramesh Yadav",
+      "score": 98,
+      "hours": "6h 40m",
+      "route": "Delhi - Mumbai"
+    },
+    {
+      "id": "demo-driver-2",
+      "name": "Iqbal Khan",
+      "score": 94,
+      "hours": "5h 10m",
+      "route": "Jaipur - Ahmedabad"
+    },
+    {
+      "id": "demo-driver-3",
+      "name": "Suresh Patel",
+      "score": 91,
+      "hours": "7h 15m",
+      "route": "Pune - Bengaluru"
+    },
+    {
+      "id": "demo-driver-4",
+      "name": "Vikram Singh",
+      "score": 88,
+      "hours": "4h 25m",
+      "route": "Nagpur - Hyderabad"
+    },
+    {
+      "name": "Test Driver",
+      "score": 95,
+      "hours": "8h",
+      "route": "Delhi - Lucknow",
+      "id": "DRI-ms7wa08f-9",
+      "ownerId": "user-1"
+    }
+  ],
+  "vehicles": [
+    {
+      "id": "vehicle-1",
+      "number": "RJ 14 GT 2291",
+      "model": "Tata Signa 5530",
+      "driver": "Ramesh Yadav",
+      "status": "In transit",
+      "odometer": "2,84,120 km",
+      "permit": "Valid",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "vehicle-2",
+      "number": "MH 12 QR 7314",
+      "model": "BharatBenz 4228R",
+      "driver": "Iqbal Khan",
+      "status": "Loading",
+      "odometer": "1,92,450 km",
+      "permit": "Valid",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "vehicle-3",
+      "number": "HR 55 AX 1808",
+      "model": "Ashok Leyland AVTR",
+      "driver": "Suresh Patel",
+      "status": "Assigned",
+      "odometer": "3,08,720 km",
+      "permit": "Renewal due",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "vehicle-4",
+      "number": "GJ 01 KM 9090",
+      "model": "Eicher Pro 6055",
+      "driver": "Vikram Singh",
+      "status": "Service bay",
+      "odometer": "2,15,660 km",
+      "permit": "Valid",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "demo-vehicle-1",
+      "number": "RJ 14 GT 2291",
+      "model": "Tata Signa 5530",
+      "driver": "Ramesh Yadav",
+      "status": "In transit",
+      "odometer": "2,84,120 km",
+      "permit": "Valid"
+    },
+    {
+      "id": "demo-vehicle-2",
+      "number": "MH 12 QR 7314",
+      "model": "BharatBenz 4228R",
+      "driver": "Iqbal Khan",
+      "status": "Loading",
+      "odometer": "1,92,450 km",
+      "permit": "Valid"
+    },
+    {
+      "id": "demo-vehicle-3",
+      "number": "HR 55 AX 1808",
+      "model": "Ashok Leyland AVTR",
+      "driver": "Suresh Patel",
+      "status": "Assigned",
+      "odometer": "3,08,720 km",
+      "permit": "Renewal due"
+    },
+    {
+      "id": "demo-vehicle-4",
+      "number": "GJ 01 KM 9090",
+      "model": "Eicher Pro 6055",
+      "driver": "Vikram Singh",
+      "status": "Service bay",
+      "odometer": "2,15,660 km",
+      "permit": "Valid"
+    }
+  ],
+  "maintenance": [
+    {
+      "id": "maint-1",
+      "vehicle": "RJ 14 GT 2291",
+      "task": "Brake liner replacement",
+      "date": "02 Aug",
+      "cost": "Rs.18,500",
+      "health": "Good",
+      "parts": "Brake liner, drum polish",
+      "mechanic": "Sharma Workshop",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "maint-2",
+      "vehicle": "MH 12 QR 7314",
+      "task": "Engine oil service",
+      "date": "05 Aug",
+      "cost": "Rs.9,200",
+      "health": "Due soon",
+      "parts": "Engine oil, oil filter, diesel filter",
+      "mechanic": "Highway Motors",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "maint-3",
+      "vehicle": "HR 55 AX 1808",
+      "task": "Reefer unit check",
+      "date": "09 Aug",
+      "cost": "Rs.12,800",
+      "health": "Scheduled",
+      "parts": "Reefer belt, coolant top-up",
+      "mechanic": "ColdLine Service",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "demo-maint-1",
+      "vehicle": "RJ 14 GT 2291",
+      "task": "Brake liner replacement",
+      "date": "02 Aug",
+      "cost": "Rs.18,500",
+      "health": "Good",
+      "parts": "Brake liner, drum polish",
+      "mechanic": "Sharma Workshop"
+    },
+    {
+      "id": "demo-maint-2",
+      "vehicle": "MH 12 QR 7314",
+      "task": "Engine oil service",
+      "date": "05 Aug",
+      "cost": "Rs.9,200",
+      "health": "Due soon",
+      "parts": "Engine oil, oil filter, diesel filter",
+      "mechanic": "Highway Motors"
+    },
+    {
+      "id": "demo-maint-3",
+      "vehicle": "HR 55 AX 1808",
+      "task": "Reefer unit check",
+      "date": "09 Aug",
+      "cost": "Rs.12,800",
+      "health": "Scheduled",
+      "parts": "Reefer belt, coolant top-up",
+      "mechanic": "ColdLine Service"
+    }
+  ],
+  "tolls": [
+    {
+      "id": "toll-1",
+      "routeId": "route-1",
+      "plaza": "Kishangarh",
+      "vehicle": "RJ 14 GT 2291",
+      "amount": "Rs.1,120",
+      "amountValue": 1120,
+      "tag": "FASTag synced",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "toll-2",
+      "routeId": "route-1",
+      "plaza": "Vadodara",
+      "vehicle": "RJ 14 GT 2291",
+      "amount": "Rs.1,860",
+      "amountValue": 1860,
+      "tag": "Reconciled",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "toll-3",
+      "routeId": "route-1",
+      "plaza": "Bharuch",
+      "vehicle": "RJ 14 GT 2291",
+      "amount": "Rs.1,440",
+      "amountValue": 1440,
+      "tag": "FASTag synced",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "toll-4",
+      "routeId": "route-2",
+      "plaza": "Udaipur",
+      "vehicle": "MH 12 QR 7314",
+      "amount": "Rs.860",
+      "amountValue": 860,
+      "tag": "Reconciled",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "toll-5",
+      "routeId": "route-2",
+      "plaza": "Himmatnagar",
+      "vehicle": "MH 12 QR 7314",
+      "amount": "Rs.740",
+      "amountValue": 740,
+      "tag": "Pending bill",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "toll-6",
+      "routeId": "route-3",
+      "plaza": "Tumakuru",
+      "vehicle": "HR 55 AX 1808",
+      "amount": "Rs.940",
+      "amountValue": 940,
+      "tag": "FASTag synced",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "demo-toll-1",
+      "routeId": "route-1",
+      "plaza": "Kishangarh",
+      "vehicle": "RJ 14 GT 2291",
+      "amount": "Rs.1,120",
+      "amountValue": 1120,
+      "tag": "FASTag synced"
+    },
+    {
+      "id": "demo-toll-2",
+      "routeId": "route-1",
+      "plaza": "Vadodara",
+      "vehicle": "RJ 14 GT 2291",
+      "amount": "Rs.1,860",
+      "amountValue": 1860,
+      "tag": "Reconciled"
+    },
+    {
+      "id": "demo-toll-3",
+      "routeId": "route-1",
+      "plaza": "Bharuch",
+      "vehicle": "RJ 14 GT 2291",
+      "amount": "Rs.1,440",
+      "amountValue": 1440,
+      "tag": "FASTag synced"
+    },
+    {
+      "id": "demo-toll-4",
+      "routeId": "route-2",
+      "plaza": "Udaipur",
+      "vehicle": "MH 12 QR 7314",
+      "amount": "Rs.860",
+      "amountValue": 860,
+      "tag": "Reconciled"
+    },
+    {
+      "id": "demo-toll-5",
+      "routeId": "route-2",
+      "plaza": "Himmatnagar",
+      "vehicle": "MH 12 QR 7314",
+      "amount": "Rs.740",
+      "amountValue": 740,
+      "tag": "Pending bill"
+    },
+    {
+      "id": "demo-toll-6",
+      "routeId": "route-3",
+      "plaza": "Tumakuru",
+      "vehicle": "HR 55 AX 1808",
+      "amount": "Rs.940",
+      "amountValue": 940,
+      "tag": "FASTag synced"
+    }
+  ],
+  "tyres": [
+    {
+      "id": "tyre-1",
+      "position": "Front Left",
+      "tyre": "TY-7294",
+      "tread": "82%",
+      "rotation": "3,200 km left",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "tyre-2",
+      "position": "Rear Right",
+      "tyre": "TY-7311",
+      "tread": "64%",
+      "rotation": "Rotate now",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "tyre-3",
+      "position": "Spare",
+      "tyre": "TY-7088",
+      "tread": "91%",
+      "rotation": "Healthy",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "demo-tyre-1",
+      "position": "Front Left",
+      "tyre": "TY-7294",
+      "tread": "82%",
+      "rotation": "3,200 km left"
+    },
+    {
+      "id": "demo-tyre-2",
+      "position": "Rear Right",
+      "tyre": "TY-7311",
+      "tread": "64%",
+      "rotation": "Rotate now"
+    },
+    {
+      "id": "demo-tyre-3",
+      "position": "Spare",
+      "tyre": "TY-7088",
+      "tread": "91%",
+      "rotation": "Healthy"
+    }
+  ],
+  "expenses": [
+    {
+      "id": "expense-1",
+      "type": "Fuel",
+      "amount": "Rs.21.8L",
+      "period": "July",
+      "trend": "+3%",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "expense-2",
+      "type": "Tolls",
+      "amount": "Rs.4.7L",
+      "period": "July",
+      "trend": "-1%",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "expense-3",
+      "type": "Maintenance",
+      "amount": "Rs.7.2L",
+      "period": "July",
+      "trend": "+5%",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "demo-expense-1",
+      "type": "Fuel",
+      "amount": "Rs.21.8L",
+      "period": "July",
+      "trend": "+3%"
+    },
+    {
+      "id": "demo-expense-2",
+      "type": "Tolls",
+      "amount": "Rs.4.7L",
+      "period": "July",
+      "trend": "-1%"
+    },
+    {
+      "id": "demo-expense-3",
+      "type": "Maintenance",
+      "amount": "Rs.7.2L",
+      "period": "July",
+      "trend": "+5%"
+    }
+  ],
+  "parts": [
+    {
+      "id": "part-1",
+      "vehicle": "RJ 14 GT 2291",
+      "name": "Brake liner set",
+      "stock": 4,
+      "unitCost": 8500,
+      "status": "Available",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "part-2",
+      "vehicle": "MH 12 QR 7314",
+      "name": "Oil filter",
+      "stock": 12,
+      "unitCost": 650,
+      "status": "Available",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "part-3",
+      "vehicle": "HR 55 AX 1808",
+      "name": "Reefer belt",
+      "stock": 2,
+      "unitCost": 3200,
+      "status": "Low stock",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "part-4",
+      "vehicle": "GJ 01 KM 9090",
+      "name": "Clutch plate",
+      "stock": 1,
+      "unitCost": 14800,
+      "status": "Order soon",
+      "ownerId": "user-1"
+    },
+    {
+      "id": "demo-part-1",
+      "vehicle": "RJ 14 GT 2291",
+      "name": "Brake liner set",
+      "stock": 4,
+      "unitCost": 8500,
+      "status": "Available"
+    },
+    {
+      "id": "demo-part-2",
+      "vehicle": "MH 12 QR 7314",
+      "name": "Oil filter",
+      "stock": 12,
+      "unitCost": 650,
+      "status": "Available"
+    },
+    {
+      "id": "demo-part-3",
+      "vehicle": "HR 55 AX 1808",
+      "name": "Reefer belt",
+      "stock": 2,
+      "unitCost": 3200,
+      "status": "Low stock"
+    },
+    {
+      "id": "demo-part-4",
+      "vehicle": "GJ 01 KM 9090",
+      "name": "Clutch plate",
+      "stock": 1,
+      "unitCost": 14800,
+      "status": "Order soon"
+    }
+  ],
+  "truckReports": [
+    {
+      "id": "report-1",
+      "vehicle": "RJ 14 GT 2291",
+      "trips": 18,
+      "revenue": 1280000,
+      "expense": 734000,
+      "profit": 546000,
+      "utilization": 92,
+      "ownerId": "user-1"
+    },
+    {
+      "id": "report-2",
+      "vehicle": "MH 12 QR 7314",
+      "trips": 14,
+      "revenue": 940000,
+      "expense": 571000,
+      "profit": 369000,
+      "utilization": 84,
+      "ownerId": "user-1"
+    },
+    {
+      "id": "report-3",
+      "vehicle": "HR 55 AX 1808",
+      "trips": 11,
+      "revenue": 790000,
+      "expense": 498000,
+      "profit": 292000,
+      "utilization": 77,
+      "ownerId": "user-1"
+    },
+    {
+      "id": "report-4",
+      "vehicle": "GJ 01 KM 9090",
+      "trips": 9,
+      "revenue": 620000,
+      "expense": 461000,
+      "profit": 159000,
+      "utilization": 69,
+      "ownerId": "user-1"
+    },
+    {
+      "id": "demo-report-1",
+      "vehicle": "RJ 14 GT 2291",
+      "trips": 18,
+      "revenue": 1280000,
+      "expense": 734000,
+      "profit": 546000,
+      "utilization": 92
+    },
+    {
+      "id": "demo-report-2",
+      "vehicle": "MH 12 QR 7314",
+      "trips": 14,
+      "revenue": 940000,
+      "expense": 571000,
+      "profit": 369000,
+      "utilization": 84
+    },
+    {
+      "id": "demo-report-3",
+      "vehicle": "HR 55 AX 1808",
+      "trips": 11,
+      "revenue": 790000,
+      "expense": 498000,
+      "profit": 292000,
+      "utilization": 77
+    },
+    {
+      "id": "demo-report-4",
+      "vehicle": "GJ 01 KM 9090",
+      "trips": 9,
+      "revenue": 620000,
+      "expense": 461000,
+      "profit": 159000,
+      "utilization": 69
+    }
+  ],
+  "financeBars": [
+    {
+      "id": "finance-1",
+      "label": "Freight",
+      "value": 88,
+      "color": "#0f9f8f"
+    },
+    {
+      "id": "finance-2",
+      "label": "Fuel",
+      "value": 46,
+      "color": "#d97706"
+    },
+    {
+      "id": "finance-3",
+      "label": "Toll",
+      "value": 24,
+      "color": "#2563eb"
+    },
+    {
+      "id": "finance-4",
+      "label": "Maintenance",
+      "value": 31,
+      "color": "#7c3aed"
+    },
+    {
+      "id": "finance-5",
+      "label": "Profit",
+      "value": 68,
+      "color": "#16a34a"
+    }
+  ],
+  "financialSummary": {
+    "projectedRevenue": "Rs.62.4L",
+    "fuelExpense": "Rs.21.8L",
+    "netProfit": "Rs.18.7L"
+  }
+}
