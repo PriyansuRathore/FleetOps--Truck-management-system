@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://fleetops-truck-management-system.onrender.com/api/$1"
+    }
+  ]
+}

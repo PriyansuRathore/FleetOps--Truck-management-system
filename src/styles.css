@@ -531,7 +531,7 @@ label {
   display: flex;
   justify-content: space-between;
   gap: 18px;
-  margin-bottom: 22px;
+  margin-bottom: 18px;
 }
 
 .page-head p {
@@ -543,7 +543,7 @@ label {
 }
 
 .page-head h1 {
-  font-size: clamp(2rem, 4vw, 3.4rem);
+  font-size: clamp(1.75rem, 3.2vw, 2.8rem);
   line-height: 1;
   margin: 0;
 }
@@ -563,20 +563,76 @@ label {
   margin-bottom: 16px;
 }
 
-.fleet-pulse {
-  align-items: center;
+.dashboard-hero {
   background:
-    radial-gradient(circle at 14% 50%, rgba(34, 211, 238, 0.16), transparent 20%),
-    linear-gradient(135deg, rgba(17, 24, 39, 0.96), rgba(2, 6, 23, 0.86));
-  border: 1px solid rgba(94, 234, 212, 0.2);
+    radial-gradient(circle at 12% 38%, rgba(34, 211, 238, 0.22), transparent 24%),
+    linear-gradient(135deg, rgba(13, 20, 36, 0.98), rgba(6, 11, 22, 0.94));
+  border: 1px solid rgba(94, 234, 212, 0.22);
   border-radius: 8px;
   box-shadow: var(--shadow);
   display: grid;
-  gap: 16px;
-  grid-template-columns: 230px 1fr;
+  gap: 18px;
+  grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.2fr);
   margin-bottom: 16px;
   overflow: hidden;
-  padding: 18px;
+  padding: 20px;
+  position: relative;
+}
+
+.dashboard-hero::after {
+  background:
+    linear-gradient(90deg, transparent, rgba(94, 234, 212, 0.16), transparent),
+    repeating-linear-gradient(90deg, transparent, transparent 42px, rgba(148, 163, 184, 0.08) 43px);
+  content: "";
+  inset: auto 0 0;
+  height: 42px;
+  position: absolute;
+}
+
+.hero-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-copy p {
+  color: var(--teal-2);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
+.hero-copy h2 {
+  font-size: clamp(2rem, 4vw, 4rem);
+  line-height: 0.95;
+  margin: 0 0 10px;
+}
+
+.hero-copy span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.hero-stats {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  position: relative;
+  z-index: 1;
+}
+
+.fleet-pulse {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 170px 1fr;
+  margin-bottom: 0;
+  overflow: hidden;
+  padding: 0;
 }
 
 .fleet-pulse p {
@@ -657,8 +713,8 @@ label {
 }
 
 .metric-card {
-  min-height: 156px;
-  padding: 18px;
+  min-height: 132px;
+  padding: 16px;
 }
 
 .metric-card svg,
@@ -676,11 +732,11 @@ label {
 }
 
 .metric-card span {
-  margin-top: 22px;
+  margin-top: 16px;
 }
 
 .metric-card strong {
-  font-size: 2rem;
+  font-size: 1.75rem;
   margin-top: 6px;
 }
 
@@ -1039,6 +1095,13 @@ textarea {
   color: #cbd5e1;
 }
 
+.table-empty {
+  color: var(--muted);
+  font-weight: 800;
+  margin: 0;
+  padding: 18px;
+}
+
 .compact-list {
   display: grid;
 }
@@ -1283,10 +1346,12 @@ textarea {
 
 @media (max-width: 1120px) {
   .metrics,
-  .finance-grid {
+  .finance-grid,
+  .hero-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .dashboard-hero,
   .dashboard-grid,
   .module-grid,
   .split-grid,
@@ -1355,8 +1420,15 @@ textarea {
   }
 
   .metrics,
-  .finance-grid {
+  .finance-grid,
+  .hero-stats,
+  .notebook-editor,
+  .ledger-form {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-hero {
+    padding: 16px;
   }
 
   .fleet-pulse {

@@ -228,8 +228,8 @@ function PublicPreview({ authOpen, setAuthOpen, onLogin }) {
       </header>
       <section className="public-hero">
         <div>
-          <p>Public fleet preview</p>
-          <h1>See your fleet in motion before you sign in. Sign in to unlock your own live operations dashboard.</h1>
+          <p>FleetOps Command</p>
+          <h1>Transport ERP for trips, trucks, freight, expenses and profit.</h1>
         </div>
         <RouteMotionMap routes={preview.routes} selectedRoute={preview.routes[0]} />
       </section>
@@ -297,7 +297,7 @@ function LoginScreen({ onLogin, compact = false }) {
           <button className={mode === "signin" ? "active" : ""} onClick={() => setMode("signin")} type="button">Sign In</button>
           <button className={mode === "signup" ? "active" : ""} onClick={() => setMode("signup")} type="button">Create Account</button>
         </div>
-        <h1>{mode === "signin" ? "Sign in to control fleet operations." : "Create your owner workspace."}</h1>
+        <h1>{mode === "signin" ? "Sign in" : "Create workspace"}</h1>
         <form onSubmit={submit}>
           {mode === "signup" && (
             <label>
@@ -324,7 +324,6 @@ function LoginScreen({ onLogin, compact = false }) {
             {loading ? "Checking..." : mode === "signin" ? "Sign In" : "Create Account"}
           </button>
         </form>
-        <p className="demo-note">Each truck owner can create a personal account. JWT is stored locally and sent with backend requests.</p>
       </motion.section>
       {!compact && <section className="login-visual">
         <div className="road-map">
@@ -438,9 +437,22 @@ function Dashboard({ data, searchQuery = "", onNewEntry }) {
   const liveFleet = buildVehicleTracker(data.vehicles || [], data.routes || []);
   const alerts = data.alerts || [];
   const searchedTruck = findTruckByQuery(data, searchQuery);
+  const dashboardTotals = buildDashboardTotals(data);
+  const openTrips = (data.tripSummaries || data.trips || []).filter((trip) => !String(trip.status || "").toLowerCase().includes("complete"));
   return (
-    <Page title="Operations Dashboard" kicker="Today" onNewEntry={onNewEntry}>
-      <FleetPulse vehicles={data.vehicles} />
+    <Page title="Dashboard" kicker="FleetOps" onNewEntry={onNewEntry}>
+      <section className="dashboard-hero">
+        <div className="hero-copy">
+          <p>Live Command</p>
+          <h2>{dashboardTotals.activeTrips} active trips</h2>
+          <span>{dashboardTotals.totalTrucks} trucks · {formatMoney(dashboardTotals.outstanding)} outstanding</span>
+        </div>
+        <div className="hero-stats">
+          <Stat label="Freight" value={formatMoney(dashboardTotals.revenue)} />
+          <Stat label="Expenses" value={formatMoney(dashboardTotals.expense)} />
+          <Stat label="Net Profit" value={formatMoney(dashboardTotals.profit)} tone={dashboardTotals.profit >= 0 ? "good" : "bad"} />
+        </div>
+      </section>
       {searchedTruck && <TruckTripSearchReport data={data} vehicleNumber={searchedTruck.number} />}
       <div className="metrics">
         {data.metrics.map((item) => {
@@ -456,22 +468,44 @@ function Dashboard({ data, searchQuery = "", onNewEntry }) {
         })}
       </div>
       <div className="dashboard-grid">
-        <Panel title="Route Optimization" icon={Navigation}>
-          <RouteList routes={data.routes} />
+        <Panel title="Fleet Movement" icon={Navigation}>
+          <FleetPulse vehicles={data.vehicles} />
         </Panel>
-        <Panel title="Freight & Load Board" icon={PackageCheck}>
-          <DataTable
-            columns={["ID", "Cargo", "Truck", "Weight", "Margin", "Status"]}
-            rows={data.loads.map((load) => [load.id, load.item, load.truck, load.weight, load.margin, load.state])}
+        <Panel title="Income vs Expense" icon={BarChart3}>
+          <VerticalBars
+            rows={[
+              { label: "Freight", value: dashboardTotals.revenue, color: "#22d3ee" },
+              { label: "Expense", value: dashboardTotals.expense, color: "#fb7185" },
+              { label: "Profit", value: Math.max(dashboardTotals.profit, 0), color: "#14b8a6" },
+              { label: "Pending", value: dashboardTotals.outstanding, color: "#fbbf24" },
+            ]}
+            formatter={formatMoney}
           />
         </Panel>
       </div>
       <div className="module-grid">
-        <Panel title="Maintenance Queue" icon={Wrench}>
-          <CompactRows rows={data.maintenance} primary="vehicle" secondary="task" meta="date" value="cost" />
+        <Panel title="Open Trips" icon={Route}>
+          <DataTable
+            columns={["Trip", "Truck", "Route", "Freight", "Expense", "Profit"]}
+            rows={openTrips.slice(0, 5).map((trip) => [
+              trip.tripNo,
+              trip.vehicle,
+              `${trip.origin} to ${trip.destination}`,
+              formatMoney(trip.totalFreight || trip.freightPrice),
+              formatMoney(trip.totalExpenses || trip.totalExpense),
+              formatMoney(trip.profit),
+            ])}
+          />
         </Panel>
-        <Panel title="Tyre Rotation Alerts" icon={Gauge}>
-          <CompactRows rows={data.tyres} primary="position" secondary="tyre" meta="tread" value="rotation" />
+        <Panel title="Top Trucks" icon={Truck}>
+          <VerticalBars
+            rows={topReports.map((report) => ({
+              label: report.vehicle,
+              value: Math.max(report.profit, 0),
+              color: report.profit >= 0 ? "#14b8a6" : "#fb7185",
+            }))}
+            formatter={formatMoney}
+          />
         </Panel>
       </div>
       <div className="dashboard-grid">
@@ -485,7 +519,7 @@ function Dashboard({ data, searchQuery = "", onNewEntry }) {
             )) : <p className="empty-state">Everything looks healthy right now.</p>}
           </div>
         </Panel>
-        <Panel title="Live Truck Tracker" icon={MapPin}>
+        <Panel title="Truck Tracker" icon={MapPin}>
           <div className="tracker-grid">
             {liveFleet.map((vehicle) => (
               <div className="tracker-card" key={vehicle.id}>
@@ -500,16 +534,6 @@ function Dashboard({ data, searchQuery = "", onNewEntry }) {
           </div>
         </Panel>
       </div>
-      <Panel title="Truck Profit Report" icon={BarChart3}>
-        <VerticalBars
-          rows={topReports.map((report) => ({
-            label: report.vehicle,
-            value: report.profit,
-            color: report.profit > 250000 ? "#0f9f8f" : "#d97706",
-          }))}
-          formatter={formatMoney}
-        />
-      </Panel>
     </Page>
   );
 }
@@ -1270,11 +1294,11 @@ function DataTable({ columns, rows }) {
       <div className="data-row head" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(120px, 1fr))` }}>
         {columns.map((column) => <strong key={column}>{column}</strong>)}
       </div>
-      {rows.map((row, index) => (
+      {rows.length ? rows.map((row, index) => (
         <div className="data-row" key={index} style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(120px, 1fr))` }}>
           {row.map((cell, cellIndex) => <span key={`${index}-${cellIndex}`}>{cell}</span>)}
         </div>
-      ))}
+      )) : <p className="table-empty">No records yet</p>}
     </div>
   );
 }
@@ -1314,6 +1338,25 @@ function sumBy(rows, key) {
 
 function formatMoney(value) {
   return `Rs.${Number(value || 0).toLocaleString("en-IN")}`;
+}
+
+function buildDashboardTotals(data) {
+  const tripSummaries = data.tripSummaries || [];
+  const reportRevenue = sumBy(data.truckReports || [], "revenue");
+  const reportExpense = sumBy(data.truckReports || [], "expense");
+  const revenue = tripSummaries.length ? sumBy(tripSummaries, "totalFreight") : reportRevenue;
+  const expense = tripSummaries.length ? sumBy(tripSummaries, "totalExpenses") : reportExpense;
+  const profit = revenue - expense;
+  const outstanding = tripSummaries.reduce((sum, trip) => sum + Number(trip.pending || 0), 0);
+  const activeTrips = (tripSummaries.length ? tripSummaries : data.trips || []).filter((trip) => !String(trip.status || "").toLowerCase().includes("complete")).length;
+  return {
+    revenue,
+    expense,
+    profit,
+    outstanding,
+    activeTrips,
+    totalTrucks: (data.vehicles || []).length,
+  };
 }
 
 function getLocalExpenseNotes() {
