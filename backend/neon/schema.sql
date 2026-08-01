@@ -56,6 +56,111 @@ create table if not exists loads (
   state text not null
 );
 
+create table if not exists trips (
+  id text primary key,
+  trip_no text not null,
+  vehicle text not null,
+  driver text,
+  origin text not null,
+  destination text not null,
+  start_date text,
+  end_date text,
+  load_name text,
+  km text,
+  freight_price integer default 0,
+  fuel_expense integer default 0,
+  toll_expense integer default 0,
+  driver_allowance integer default 0,
+  maintenance_expense integer default 0,
+  other_expense integer default 0,
+  total_expense integer default 0,
+  profit integer default 0,
+  status text not null
+);
+
+create table if not exists expense_notes (
+  id text primary key,
+  trip_no text,
+  vehicle text,
+  note_date text,
+  category text not null,
+  amount integer default 0,
+  note text not null
+);
+
+create table if not exists maintenance_notes (
+  id text primary key,
+  vehicle text,
+  note_date text,
+  notes text not null,
+  total_cost integer default 0
+);
+
+create table if not exists trip_loads (
+  id text primary key,
+  trip_id text not null,
+  source text,
+  destination text,
+  party text,
+  description text,
+  freight_amount numeric(12,2) default 0,
+  loading_date text,
+  unloading_date text,
+  payment_status text,
+  received_amount numeric(12,2) default 0,
+  invoice_number text,
+  lr_number text,
+  pod_status text,
+  notes text,
+  attachment text
+);
+
+create table if not exists trip_expenses (
+  id text primary key,
+  trip_id text not null,
+  description text not null,
+  amount numeric(12,2) default 0,
+  expense_date text,
+  category text,
+  paid_by text,
+  payment_method text,
+  notes text,
+  attachment text
+);
+
+create table if not exists trip_payments (
+  id text primary key,
+  trip_id text not null,
+  load_id text,
+  party text,
+  payment_date text,
+  amount numeric(12,2) default 0,
+  mode text,
+  reference_number text,
+  notes text
+);
+
+create table if not exists trip_notes (
+  id text primary key,
+  trip_id text not null,
+  note_date text,
+  note text not null
+);
+
+create table if not exists fuel_entries (
+  id text primary key,
+  trip_id text,
+  vehicle text,
+  fuel_date text,
+  station text,
+  litres numeric(10,2) default 0,
+  rate_per_litre numeric(10,2) default 0,
+  total_amount numeric(12,2) default 0,
+  odometer text,
+  receipt text,
+  notes text
+);
+
 create table if not exists maintenance (
   id text primary key,
   vehicle text not null,
@@ -124,12 +229,30 @@ alter table vehicles add column if not exists owner_id text;
 alter table drivers add column if not exists owner_id text;
 alter table routes add column if not exists owner_id text;
 alter table loads add column if not exists owner_id text;
+alter table trips add column if not exists owner_id text;
+alter table expense_notes add column if not exists owner_id text;
+alter table maintenance_notes add column if not exists owner_id text;
+alter table trip_loads add column if not exists owner_id text;
+alter table trip_expenses add column if not exists owner_id text;
+alter table trip_payments add column if not exists owner_id text;
+alter table trip_notes add column if not exists owner_id text;
+alter table fuel_entries add column if not exists owner_id text;
 alter table maintenance add column if not exists owner_id text;
 alter table tolls add column if not exists owner_id text;
 alter table tyres add column if not exists owner_id text;
 alter table expenses add column if not exists owner_id text;
 alter table parts add column if not exists owner_id text;
 alter table truck_reports add column if not exists owner_id text;
+
+alter table expense_notes alter column trip_no drop not null;
+alter table expense_notes alter column vehicle drop not null;
+
+create index if not exists trip_loads_trip_id_idx on trip_loads (trip_id);
+create index if not exists trip_expenses_trip_id_idx on trip_expenses (trip_id);
+create index if not exists trip_payments_trip_id_idx on trip_payments (trip_id);
+create index if not exists trip_notes_trip_id_idx on trip_notes (trip_id);
+create index if not exists fuel_entries_trip_id_idx on fuel_entries (trip_id);
+create index if not exists fuel_entries_vehicle_idx on fuel_entries (vehicle);
 
 insert into users (id, name, email, password, role)
 values ('user-1', 'Admin Manager', 'admin@fleetops.com', 'admin123', 'Owner')
@@ -152,6 +275,19 @@ insert into loads (id, item, truck, weight, margin, state) values
 ('LD-4812', 'FMCG pallets', 'RJ 14 GT 2291', '18.2 T', '28%', 'In transit'),
 ('LD-4831', 'Auto components', 'MH 12 QR 7314', '12.6 T', '34%', 'Loading'),
 ('LD-4864', 'Cold chain cartons', 'HR 55 AX 1808', '9.8 T', '22%', 'Assigned')
+on conflict (id) do nothing;
+
+insert into trips (id, trip_no, vehicle, driver, origin, destination, start_date, end_date, load_name, km, freight_price, fuel_expense, toll_expense, driver_allowance, maintenance_expense, other_expense, total_expense, profit, status) values
+('trip-1', 'TRP-1001', 'RJ 14 GT 2291', 'Ramesh Yadav', 'Delhi', 'Mumbai', '2026-07-01', '2026-07-03', 'FMCG pallets', '1,418 km', 128000, 38880, 7420, 6200, 18500, 9400, 80400, 47600, 'Completed'),
+('trip-2', 'TRP-1002', 'RJ 14 GT 2291', 'Ramesh Yadav', 'Mumbai', 'Delhi', '2026-07-08', '2026-07-10', 'Return load', '1,418 km', 118000, 40200, 7100, 6200, 0, 8800, 62300, 55700, 'Completed'),
+('trip-3', 'TRP-1003', 'MH 12 QR 7314', 'Iqbal Khan', 'Jaipur', 'Ahmedabad', '2026-07-11', '2026-07-12', 'Auto components', '678 km', 68000, 18624, 3860, 3400, 9200, 4200, 39284, 28716, 'Completed'),
+('trip-4', 'TRP-1004', 'HR 55 AX 1808', 'Suresh Patel', 'Pune', 'Bengaluru', '2026-07-15', '2026-07-16', 'Cold chain cartons', '842 km', 79000, 23136, 5120, 4100, 12800, 5600, 50756, 28244, 'In transit')
+on conflict (id) do nothing;
+
+insert into expense_notes (id, trip_no, vehicle, note_date, category, amount, note) values
+('note-1', 'TRP-1001', 'RJ 14 GT 2291', '2026-07-02', 'Diesel', 4200, 'Extra diesel filled near Udaipur'),
+('note-2', 'TRP-1001', 'RJ 14 GT 2291', '2026-07-02', 'Loading', 900, 'Helper charge at warehouse'),
+('note-3', 'TRP-1003', 'MH 12 QR 7314', '2026-07-11', 'Parking', 350, 'Night parking near Ahmedabad')
 on conflict (id) do nothing;
 
 insert into drivers (id, name, score, hours, route) values

@@ -70,6 +70,278 @@ const collectionConfig = {
     columns: ["id", "item", "truck", "weight", "margin", "state"],
     ownerScoped: true,
   },
+  trips: {
+    table: "trips",
+    columns: [
+      "id",
+      "trip_no",
+      "vehicle",
+      "driver",
+      "origin",
+      "destination",
+      "start_date",
+      "end_date",
+      "load_name",
+      "km",
+      "freight_price",
+      "fuel_expense",
+      "toll_expense",
+      "driver_allowance",
+      "maintenance_expense",
+      "other_expense",
+      "total_expense",
+      "profit",
+      "status",
+    ],
+    ownerScoped: true,
+    fromApi(payload) {
+      const freightPrice = Number(payload.freight_price ?? payload.freightPrice ?? payload.price ?? 0);
+      const fuelExpense = Number(payload.fuel_expense ?? payload.fuelExpense ?? 0);
+      const tollExpense = Number(payload.toll_expense ?? payload.tollExpense ?? 0);
+      const driverAllowance = Number(payload.driver_allowance ?? payload.driverAllowance ?? 0);
+      const maintenanceExpense = Number(payload.maintenance_expense ?? payload.maintenanceExpense ?? 0);
+      const otherExpense = Number(payload.other_expense ?? payload.otherExpense ?? 0);
+      const totalExpense = fuelExpense + tollExpense + driverAllowance + maintenanceExpense + otherExpense;
+      return {
+        ...payload,
+        trip_no: payload.trip_no ?? payload.tripNo,
+        start_date: payload.start_date ?? payload.startDate,
+        end_date: payload.end_date ?? payload.endDate,
+        load_name: payload.load_name ?? payload.load,
+        freight_price: freightPrice,
+        fuel_expense: fuelExpense,
+        toll_expense: tollExpense,
+        driver_allowance: driverAllowance,
+        maintenance_expense: maintenanceExpense,
+        other_expense: otherExpense,
+        total_expense: Number(payload.total_expense ?? payload.totalExpense ?? totalExpense),
+        profit: Number(payload.profit ?? freightPrice - totalExpense),
+      };
+    },
+    toApi(row) {
+      return {
+        id: row.id,
+        tripNo: row.trip_no,
+        vehicle: row.vehicle,
+        driver: row.driver,
+        origin: row.origin,
+        destination: row.destination,
+        startDate: row.start_date,
+        endDate: row.end_date,
+        load: row.load_name,
+        km: row.km,
+        freightPrice: row.freight_price,
+        fuelExpense: row.fuel_expense,
+        tollExpense: row.toll_expense,
+        driverAllowance: row.driver_allowance,
+        maintenanceExpense: row.maintenance_expense,
+        otherExpense: row.other_expense,
+        totalExpense: row.total_expense,
+        profit: row.profit,
+        status: row.status,
+      };
+    },
+  },
+  expenseNotes: {
+    table: "expense_notes",
+    columns: ["id", "trip_no", "vehicle", "note_date", "category", "amount", "note"],
+    ownerScoped: true,
+    fromApi(payload) {
+      return {
+        ...payload,
+        trip_no: payload.trip_no ?? payload.tripNo ?? "",
+        vehicle: payload.vehicle ?? "",
+        note_date: payload.note_date ?? payload.noteDate ?? new Date().toISOString().slice(0, 10),
+        category: payload.category ?? payload.title ?? "Expense Details",
+        amount: Number(payload.amount ?? payload.totalExpense ?? 0),
+        note: payload.note ?? payload.notes ?? "",
+      };
+    },
+    toApi(row) {
+      return {
+        id: row.id,
+        tripNo: row.trip_no,
+        vehicle: row.vehicle,
+        noteDate: row.note_date,
+        category: row.category,
+        amount: row.amount,
+        note: row.note,
+      };
+    },
+  },
+  tripLoads: {
+    table: "trip_loads",
+    columns: ["id", "trip_id", "source", "destination", "party", "description", "freight_amount", "loading_date", "unloading_date", "payment_status", "received_amount", "invoice_number", "lr_number", "pod_status", "notes", "attachment"],
+    ownerScoped: true,
+    fromApi(payload) {
+      const freightAmount = Number(payload.freight_amount ?? payload.freightAmount ?? 0);
+      const receivedAmount = Number(payload.received_amount ?? payload.receivedAmount ?? 0);
+      return {
+        ...payload,
+        trip_id: payload.trip_id ?? payload.tripId,
+        freight_amount: freightAmount,
+        loading_date: payload.loading_date ?? payload.loadingDate,
+        unloading_date: payload.unloading_date ?? payload.unloadingDate,
+        payment_status: payload.payment_status ?? payload.paymentStatus ?? (receivedAmount >= freightAmount && freightAmount > 0 ? "Paid" : "Pending"),
+        received_amount: receivedAmount,
+        invoice_number: payload.invoice_number ?? payload.invoiceNumber,
+        lr_number: payload.lr_number ?? payload.lrNumber,
+        pod_status: payload.pod_status ?? payload.podStatus ?? "Pending",
+      };
+    },
+    toApi(row) {
+      return {
+        id: row.id,
+        tripId: row.trip_id,
+        source: row.source,
+        destination: row.destination,
+        party: row.party,
+        description: row.description,
+        freightAmount: row.freight_amount,
+        loadingDate: row.loading_date,
+        unloadingDate: row.unloading_date,
+        paymentStatus: row.payment_status,
+        receivedAmount: row.received_amount,
+        pendingAmount: Number(row.freight_amount || 0) - Number(row.received_amount || 0),
+        invoiceNumber: row.invoice_number,
+        lrNumber: row.lr_number,
+        podStatus: row.pod_status,
+        notes: row.notes,
+        attachment: row.attachment,
+      };
+    },
+  },
+  tripExpenses: {
+    table: "trip_expenses",
+    columns: ["id", "trip_id", "description", "amount", "expense_date", "category", "paid_by", "payment_method", "notes", "attachment"],
+    ownerScoped: true,
+    fromApi(payload) {
+      return {
+        ...payload,
+        trip_id: payload.trip_id ?? payload.tripId,
+        amount: Number(payload.amount || 0),
+        expense_date: payload.expense_date ?? payload.expenseDate ?? new Date().toISOString().slice(0, 10),
+        paid_by: payload.paid_by ?? payload.paidBy,
+        payment_method: payload.payment_method ?? payload.paymentMethod,
+      };
+    },
+    toApi(row) {
+      return {
+        id: row.id,
+        tripId: row.trip_id,
+        description: row.description,
+        amount: row.amount,
+        expenseDate: row.expense_date,
+        category: row.category,
+        paidBy: row.paid_by,
+        paymentMethod: row.payment_method,
+        notes: row.notes,
+        attachment: row.attachment,
+      };
+    },
+  },
+  tripPayments: {
+    table: "trip_payments",
+    columns: ["id", "trip_id", "load_id", "party", "payment_date", "amount", "mode", "reference_number", "notes"],
+    ownerScoped: true,
+    fromApi(payload) {
+      return {
+        ...payload,
+        trip_id: payload.trip_id ?? payload.tripId,
+        load_id: payload.load_id ?? payload.loadId,
+        payment_date: payload.payment_date ?? payload.paymentDate ?? new Date().toISOString().slice(0, 10),
+        amount: Number(payload.amount || 0),
+        reference_number: payload.reference_number ?? payload.referenceNumber,
+      };
+    },
+    toApi(row) {
+      return {
+        id: row.id,
+        tripId: row.trip_id,
+        loadId: row.load_id,
+        party: row.party,
+        paymentDate: row.payment_date,
+        amount: row.amount,
+        mode: row.mode,
+        referenceNumber: row.reference_number,
+        notes: row.notes,
+      };
+    },
+  },
+  tripNotes: {
+    table: "trip_notes",
+    columns: ["id", "trip_id", "note_date", "note"],
+    ownerScoped: true,
+    fromApi(payload) {
+      return {
+        ...payload,
+        trip_id: payload.trip_id ?? payload.tripId,
+        note_date: payload.note_date ?? payload.noteDate ?? new Date().toISOString().slice(0, 10),
+      };
+    },
+    toApi(row) {
+      return {
+        id: row.id,
+        tripId: row.trip_id,
+        noteDate: row.note_date,
+        note: row.note,
+      };
+    },
+  },
+  fuelEntries: {
+    table: "fuel_entries",
+    columns: ["id", "trip_id", "vehicle", "fuel_date", "station", "litres", "rate_per_litre", "total_amount", "odometer", "receipt", "notes"],
+    ownerScoped: true,
+    fromApi(payload) {
+      const litres = Number(payload.litres || 0);
+      const rate = Number(payload.rate_per_litre ?? payload.ratePerLitre ?? 0);
+      return {
+        ...payload,
+        trip_id: payload.trip_id ?? payload.tripId,
+        fuel_date: payload.fuel_date ?? payload.fuelDate ?? new Date().toISOString().slice(0, 10),
+        rate_per_litre: rate,
+        total_amount: Number(payload.total_amount ?? payload.totalAmount ?? litres * rate),
+      };
+    },
+    toApi(row) {
+      return {
+        id: row.id,
+        tripId: row.trip_id,
+        vehicle: row.vehicle,
+        fuelDate: row.fuel_date,
+        station: row.station,
+        litres: row.litres,
+        ratePerLitre: row.rate_per_litre,
+        totalAmount: row.total_amount,
+        odometer: row.odometer,
+        receipt: row.receipt,
+        notes: row.notes,
+      };
+    },
+  },
+  maintenanceNotes: {
+    table: "maintenance_notes",
+    columns: ["id", "vehicle", "note_date", "notes", "total_cost"],
+    ownerScoped: true,
+    fromApi(payload) {
+      return {
+        ...payload,
+        vehicle: payload.vehicle ?? "",
+        note_date: payload.note_date ?? payload.noteDate ?? new Date().toISOString().slice(0, 10),
+        notes: payload.notes ?? payload.note ?? "",
+        total_cost: Number(payload.total_cost ?? payload.totalCost ?? 0),
+      };
+    },
+    toApi(row) {
+      return {
+        id: row.id,
+        vehicle: row.vehicle,
+        noteDate: row.note_date,
+        notes: row.notes,
+        totalCost: row.total_cost,
+      };
+    },
+  },
   drivers: {
     table: "drivers",
     columns: ["id", "name", "score", "hours", "route"],
@@ -170,6 +442,12 @@ const collectionConfig = {
 };
 
 const collections = new Set(Object.keys(collectionConfig));
+const resourceAliases = {
+  "expense-notes": "expenseNotes",
+  expense_notes: "expenseNotes",
+  "maintenance-notes": "maintenanceNotes",
+  maintenance_notes: "maintenanceNotes",
+};
 
 async function readJsonDb() {
   const raw = await readFile(DB_PATH, "utf8");
@@ -235,6 +513,10 @@ function toApi(resource, row) {
 
 function fromApi(resource, payload) {
   return collectionConfig[resource].fromApi ? collectionConfig[resource].fromApi(payload) : payload;
+}
+
+function parseMoney(value) {
+  return Number(String(value || "0").replace(/[^0-9.-]/g, "")) || 0;
 }
 
 async function pgQuery(sql, params = []) {
@@ -351,15 +633,84 @@ async function deleteRecord(resource, id, session = null) {
   return result.rowCount > 0;
 }
 
-function computedMetrics({ vehicles, routes, loads, maintenance, truckReports }) {
+function computedMetrics({ vehicles, routes, loads, maintenance, truckReports, trips, globalExpense = 0 }) {
   const revenue = truckReports.reduce((sum, row) => sum + Number(row.revenue || 0), 0);
-  const profit = truckReports.reduce((sum, row) => sum + Number(row.profit || 0), 0);
+  const profit = truckReports.reduce((sum, row) => sum + Number(row.profit || 0), 0) - globalExpense;
+  const activeTrips = trips.length || loads.length;
   return [
     { id: "metric-owned-1", label: "Active trucks", value: String(vehicles.length), delta: `${routes.length} routes planned` },
-    { id: "metric-owned-2", label: "On-time trips", value: loads.length ? "92%" : "0%", delta: `${loads.length} active loads` },
+    { id: "metric-owned-2", label: "On-time trips", value: activeTrips ? "92%" : "0%", delta: `${activeTrips} trip records` },
     { id: "metric-owned-3", label: "Monthly profit", value: `Rs.${profit.toLocaleString("en-IN")}`, delta: `Revenue Rs.${revenue.toLocaleString("en-IN")}` },
     { id: "metric-owned-4", label: "Fleet alerts", value: String(maintenance.length), delta: "maintenance records" },
   ];
+}
+
+function buildTripSummaries({ trips, tripLoads, tripExpenses, tripPayments, tripNotes, fuelEntries }) {
+  return trips.map((trip) => {
+    const loads = tripLoads.filter((load) => load.tripId === trip.id);
+    const expenses = tripExpenses.filter((expense) => expense.tripId === trip.id);
+    const payments = tripPayments.filter((payment) => payment.tripId === trip.id);
+    const notes = tripNotes.filter((note) => note.tripId === trip.id);
+    const fuel = fuelEntries.filter((entry) => entry.tripId === trip.id || (entry.vehicle && entry.vehicle === trip.vehicle));
+    const legacyIncome = Number(trip.freightPrice || 0);
+    const legacyExpense = Number(trip.totalExpense || 0);
+    const totalFreight = loads.length ? loads.reduce((sum, load) => sum + Number(load.freightAmount || 0), 0) : legacyIncome;
+    const loadReceived = loads.reduce((sum, load) => sum + Number(load.receivedAmount || 0), 0);
+    const paymentReceived = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    const received = Math.max(loadReceived, paymentReceived);
+    const pending = Math.max(totalFreight - received, 0);
+    const ledgerExpense = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    const fuelExpense = fuel.reduce((sum, entry) => sum + Number(entry.totalAmount || 0), 0);
+    const totalExpenses = expenses.length || fuel.length ? ledgerExpense + fuelExpense : legacyExpense;
+    const profit = totalFreight - totalExpenses;
+    const distance = parseMoney(trip.km);
+    return {
+      ...trip,
+      loads,
+      expenses,
+      payments,
+      notes,
+      fuelEntries: fuel,
+      totalFreight,
+      received,
+      pending,
+      totalExpenses,
+      profit,
+      profitMargin: totalFreight ? (profit / totalFreight) * 100 : 0,
+      distance,
+      profitPerKm: distance ? profit / distance : 0,
+    };
+  });
+}
+
+function computedTruckReportsFromTripSummaries({ vehicles, tripSummaries, expenseNotes, maintenanceNotes, maintenance }) {
+  const vehicleNumbers = vehicles.map((vehicle) => vehicle.number).filter(Boolean);
+  const tripVehicles = [...new Set(tripSummaries.map((trip) => trip.vehicle).filter(Boolean))];
+  const reportVehicles = [...new Set([...vehicleNumbers, ...tripVehicles])];
+
+  return reportVehicles.map((vehicle, index) => {
+    const vehicleTrips = tripSummaries.filter((trip) => trip.vehicle === vehicle);
+    const revenue = vehicleTrips.reduce((sum, trip) => sum + Number(trip.totalFreight || 0), 0);
+    const tripExpense = vehicleTrips.reduce((sum, trip) => sum + Number(trip.totalExpenses || 0), 0);
+    const noteExpense = expenseNotes.filter((note) => note.vehicle === vehicle).reduce((sum, note) => sum + Number(note.amount || 0), 0);
+    const maintenanceNoteExpense = maintenanceNotes.filter((note) => note.vehicle === vehicle).reduce((sum, note) => sum + Number(note.totalCost || 0), 0);
+    const hasTripMaintenance = vehicleTrips.some((trip) => Number(trip.maintenanceExpense || 0) > 0);
+    const legacyMaintenanceExpense = hasTripMaintenance ? 0 : maintenance.filter((item) => item.vehicle === vehicle).reduce((sum, item) => sum + parseMoney(item.cost), 0);
+    const expense = tripExpense + noteExpense + maintenanceNoteExpense + legacyMaintenanceExpense;
+    const distance = vehicleTrips.reduce((sum, trip) => sum + Number(trip.distance || 0), 0);
+    return {
+      id: `trip-report-${index}-${vehicle}`,
+      vehicle,
+      trips: vehicleTrips.length,
+      revenue,
+      expense,
+      profit: revenue - expense,
+      utilization: vehicleTrips.length ? Math.min(100, 68 + vehicleTrips.length * 7) : 0,
+      distance,
+      averageProfit: vehicleTrips.length ? (revenue - expense) / vehicleTrips.length : 0,
+      profitPerKm: distance ? (revenue - expense) / distance : 0,
+    };
+  });
 }
 
 function computedTruckReports({ vehicles, routes, expenses }) {
@@ -450,6 +801,14 @@ async function getDashboard(session = null, options = {}) {
     tyres,
     expenses,
     parts,
+    trips,
+    expenseNotes,
+    maintenanceNotes,
+    tripLoads,
+    tripExpenses,
+    tripPayments,
+    tripNotes,
+    fuelEntries,
     truckReports,
     financeBars,
   ] = await Promise.all([
@@ -462,16 +821,31 @@ async function getDashboard(session = null, options = {}) {
     getCollection("tyres", session, options),
     getCollection("expenses", session, options),
     getCollection("parts", session, options),
+    getCollection("trips", session, options),
+    getCollection("expenseNotes", session, options).catch(() => []),
+    getCollection("maintenanceNotes", session, options).catch(() => []),
+    getCollection("tripLoads", session, options).catch(() => []),
+    getCollection("tripExpenses", session, options).catch(() => []),
+    getCollection("tripPayments", session, options).catch(() => []),
+    getCollection("tripNotes", session, options).catch(() => []),
+    getCollection("fuelEntries", session, options).catch(() => []),
     getCollection("truckReports", session, options),
     getCollection("financeBars", session, options),
   ]);
-  const metrics = options.publicPreview
-    ? await getCollection("metrics", session, options)
-    : computedMetrics({ vehicles, routes, loads, maintenance, truckReports });
-  const alerts = computedAlerts({ vehicles, maintenance, tyres, routes });
+  const tripSummaries = buildTripSummaries({ trips, tripLoads, tripExpenses, tripPayments, tripNotes, fuelEntries });
   const dynamicTruckReports = options.publicPreview
     ? truckReports
-    : computedTruckReports({ vehicles, routes, expenses });
+    : trips.length
+      ? computedTruckReportsFromTripSummaries({ vehicles, tripSummaries, expenseNotes, maintenanceNotes, maintenance })
+      : computedTruckReports({ vehicles, routes, expenses });
+  const globalExpense = [
+    ...expenseNotes.filter((note) => !note.vehicle).map((note) => Number(note.amount || 0)),
+    ...maintenanceNotes.filter((note) => !note.vehicle).map((note) => Number(note.totalCost || 0)),
+  ].reduce((sum, value) => sum + value, 0);
+  const metrics = options.publicPreview
+    ? await getCollection("metrics", session, options)
+    : computedMetrics({ vehicles, routes, loads, maintenance, truckReports: dynamicTruckReports, trips, globalExpense });
+  const alerts = computedAlerts({ vehicles, maintenance, tyres, routes });
 
   return {
     metrics,
@@ -484,13 +858,22 @@ async function getDashboard(session = null, options = {}) {
     tyres,
     expenses,
     parts,
+    trips,
+    tripSummaries,
+    expenseNotes,
+    maintenanceNotes,
+    tripLoads,
+    tripExpenses,
+    tripPayments,
+    tripNotes,
+    fuelEntries,
     truckReports: dynamicTruckReports,
     financeBars,
     alerts,
     financialSummary: {
       projectedRevenue: `Rs.${(dynamicTruckReports.reduce((sum, row) => sum + Number(row.revenue || 0), 0) / 100000).toFixed(1)}L`,
       fuelExpense: `Rs.${(routes.reduce((sum, row) => sum + Number(row.fuelCost || 0), 0) / 100000).toFixed(1)}L`,
-      netProfit: `Rs.${(dynamicTruckReports.reduce((sum, row) => sum + Number(row.profit || 0), 0) / 100000).toFixed(1)}L`,
+      netProfit: `Rs.${((dynamicTruckReports.reduce((sum, row) => sum + Number(row.profit || 0), 0) - globalExpense) / 100000).toFixed(1)}L`,
     },
   };
 }
@@ -557,7 +940,8 @@ async function verifyPassword(user, password) {
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
-    const [, api, resource, id] = url.pathname.split("/");
+    const [, api, rawResource, id] = url.pathname.split("/");
+    const resource = resourceAliases[rawResource] || rawResource;
 
     if (req.method === "OPTIONS") return sendJson(res, 204, {});
     if (api !== "api") return sendJson(res, 404, { error: "Route not found" });
@@ -642,6 +1026,7 @@ const server = http.createServer(async (req, res) => {
 
     return sendJson(res, 405, { error: "Method not allowed" });
   } catch (error) {
+    console.error('Unhandled request error:', error && (error.stack || error));
     return sendJson(res, 500, { error: error.message });
   }
 });

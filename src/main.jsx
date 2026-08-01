@@ -41,6 +41,7 @@ const iconMap = {
   drivers: UserRoundCheck,
   vehicles: Truck,
   maintenance: Wrench,
+  trips: Route,
   tolls: Map,
   tyres: Gauge,
   finance: BadgeIndianRupee,
@@ -58,6 +59,15 @@ const fallbackDashboard = {
   metrics: [],
   routes: [],
   loads: [],
+  trips: [],
+  tripSummaries: [],
+  tripLoads: [],
+  tripExpenses: [],
+  tripPayments: [],
+  tripNotes: [],
+  fuelEntries: [],
+  expenseNotes: [],
+  maintenanceNotes: [],
   drivers: [],
   vehicles: [],
   maintenance: [],
@@ -78,6 +88,7 @@ const navItems = [
   ["dashboard", "Dashboard"],
   ["routes", "Route Optimizer"],
   ["loads", "Freight & Loads"],
+  ["trips", "Trip Register"],
   ["drivers", "Drivers"],
   ["vehicles", "Vehicles"],
   ["maintenance", "Maintenance"],
@@ -98,6 +109,7 @@ function App() {
   const [apiStatus, setApiStatus] = useState("Connecting");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [entryOpen, setEntryOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -138,6 +150,8 @@ function App() {
         <Topbar
           user={user}
           apiStatus={apiStatus}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
           onLogout={handleLogout}
           onMenu={() => setSidebarOpen(true)}
         />
@@ -149,7 +163,13 @@ function App() {
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.28 }}
           >
-            <PageRouter page={activePage} data={dashboard} onNewEntry={() => setEntryOpen(true)} />
+            <PageRouter
+              page={activePage}
+              data={dashboard}
+              searchQuery={searchQuery}
+              onNewEntry={() => setEntryOpen(true)}
+              onRefresh={() => fetchDashboard(setDashboard, setApiStatus)}
+            />
           </motion.div>
         </AnimatePresence>
         <NewEntryModal
@@ -173,10 +193,10 @@ async function fetchDashboard(setDashboard, setApiStatus) {
       headers: session.token ? { Authorization: `Bearer ${session.token}` } : {},
     });
     const data = await response.json();
-    setDashboard({ ...fallbackDashboard, ...data });
+    setDashboard({ ...fallbackDashboard, ...data, expenseNotes: [...(data.expenseNotes || []), ...getLocalExpenseNotes()] });
     setApiStatus("Live API");
   } catch {
-    setDashboard(fallbackDashboard);
+    setDashboard({ ...fallbackDashboard, expenseNotes: getLocalExpenseNotes() });
     setApiStatus("Offline");
   }
 }
@@ -364,7 +384,7 @@ function Sidebar({ activePage, setActivePage, open, setOpen }) {
   );
 }
 
-function Topbar({ user, apiStatus, onLogout, onMenu }) {
+function Topbar({ user, apiStatus, searchQuery, setSearchQuery, onLogout, onMenu }) {
   return (
     <header className="topbar">
       <button className="menu-button" onClick={onMenu} aria-label="Open navigation">
@@ -372,7 +392,11 @@ function Topbar({ user, apiStatus, onLogout, onMenu }) {
       </button>
       <div className="search-box">
         <Search size={18} />
-        <input placeholder="Search truck, driver, load, toll, tyre..." />
+        <input
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Search truck number for trip-wise report..."
+        />
       </div>
       <div className="top-actions">
         <span className={apiStatus === "Live API" ? "status live" : "status"}>{apiStatus}</span>
@@ -392,29 +416,32 @@ function Topbar({ user, apiStatus, onLogout, onMenu }) {
   );
 }
 
-function PageRouter({ page, data, onNewEntry }) {
+function PageRouter({ page, data, searchQuery, onNewEntry, onRefresh }) {
   const pages = {
-    dashboard: <Dashboard data={data} onNewEntry={onNewEntry} />,
+    dashboard: <Dashboard data={data} searchQuery={searchQuery} onNewEntry={onNewEntry} />,
     routes: <RoutePage routes={data.routes} tolls={data.tolls} onNewEntry={onNewEntry} />,
     loads: <LoadsPage loads={data.loads} onNewEntry={onNewEntry} />,
+    trips: <TripsPage data={data} searchQuery={searchQuery} onNewEntry={onNewEntry} onRefresh={onRefresh} />,
     drivers: <DriversPage drivers={data.drivers} onNewEntry={onNewEntry} />,
-    vehicles: <VehiclesPage vehicles={data.vehicles} reports={data.truckReports} maintenance={data.maintenance} onNewEntry={onNewEntry} />,
-    maintenance: <MaintenancePage maintenance={data.maintenance} parts={data.parts} onNewEntry={onNewEntry} />,
+    vehicles: <VehiclesPage data={data} onNewEntry={onNewEntry} />,
+    maintenance: <MaintenancePage data={data} onNewEntry={onNewEntry} onRefresh={onRefresh} />,
     tolls: <TollsPage tolls={data.tolls} routes={data.routes} onNewEntry={onNewEntry} />,
     tyres: <TyresPage tyres={data.tyres} onNewEntry={onNewEntry} />,
-    finance: <FinancePage data={data} onNewEntry={onNewEntry} />,
+    finance: <FinancePage data={data} onNewEntry={onNewEntry} onRefresh={onRefresh} />,
     settings: <SettingsPage onNewEntry={onNewEntry} />,
   };
   return pages[page] || pages.dashboard;
 }
 
-function Dashboard({ data, onNewEntry }) {
+function Dashboard({ data, searchQuery = "", onNewEntry }) {
   const topReports = [...(data.truckReports || [])].sort((a, b) => b.profit - a.profit).slice(0, 4);
   const liveFleet = buildVehicleTracker(data.vehicles || [], data.routes || []);
   const alerts = data.alerts || [];
+  const searchedTruck = findTruckByQuery(data, searchQuery);
   return (
     <Page title="Operations Dashboard" kicker="Today" onNewEntry={onNewEntry}>
       <FleetPulse vehicles={data.vehicles} />
+      {searchedTruck && <TruckTripSearchReport data={data} vehicleNumber={searchedTruck.number} />}
       <div className="metrics">
         {data.metrics.map((item) => {
           const Icon = metricIcons[item.label] || CircleGauge;
@@ -615,6 +642,283 @@ function LoadsPage({ loads, onNewEntry }) {
   );
 }
 
+function TripsPage({ data, searchQuery = "", onNewEntry, onRefresh }) {
+  const vehicles = data.vehicles || [];
+  const searchedTruck = findTruckByQuery(data, searchQuery);
+  const [selectedVehicle, setSelectedVehicle] = useState("");
+  const [selectedTripId, setSelectedTripId] = useState("");
+  const activeVehicle = searchedTruck?.number || selectedVehicle || vehicles[0]?.number || data.trips?.[0]?.vehicle || "";
+  const report = buildTripReport(data, activeVehicle);
+  const tripSummaries = (data.tripSummaries || []).filter((trip) => trip.vehicle === activeVehicle);
+  const activeTrip = tripSummaries.find((trip) => trip.id === selectedTripId) || tripSummaries[0];
+  const tripRows = tripSummaries.map((trip) => [
+    trip.tripNo,
+    `${trip.origin} to ${trip.destination}`,
+    trip.startDate || "-",
+    trip.endDate || "-",
+    trip.load || "-",
+    trip.km || "-",
+    formatMoney(trip.totalFreight),
+    formatMoney(trip.totalExpenses),
+    formatMoney(trip.profit),
+    trip.status,
+  ]);
+
+  useEffect(() => {
+    if (!selectedVehicle && vehicles[0]?.number) setSelectedVehicle(vehicles[0].number);
+  }, [vehicles[0]?.number, selectedVehicle]);
+
+  useEffect(() => {
+    if (tripSummaries[0]?.id && !tripSummaries.some((trip) => trip.id === selectedTripId)) {
+      setSelectedTripId(tripSummaries[0].id);
+    }
+  }, [tripSummaries[0]?.id, selectedTripId]);
+
+  return (
+    <Page title="Trip Wise Truck Register" kicker="Trips" onNewEntry={onNewEntry}>
+      <div className="split-grid">
+        <Panel title="Truck Trip Summary" icon={Route}>
+          <label>
+            Select truck
+            <select value={activeVehicle} onChange={(event) => setSelectedVehicle(event.target.value)}>
+              {[...new Set([...(vehicles || []).map((vehicle) => vehicle.number), ...(data.trips || []).map((trip) => trip.vehicle)])]
+                .filter(Boolean)
+                .map((number) => <option key={number}>{number}</option>)}
+            </select>
+          </label>
+          <label>
+            Select trip
+            <select value={activeTrip?.id || ""} onChange={(event) => setSelectedTripId(event.target.value)}>
+              {tripSummaries.map((trip) => <option key={trip.id} value={trip.id}>{trip.tripNo} - {trip.origin} to {trip.destination}</option>)}
+            </select>
+          </label>
+          <TripSummary report={report} />
+        </Panel>
+        <Panel title="Cost Output Graph" icon={BarChart3}>
+          <VerticalBars
+            rows={[
+              { label: "Price", value: report.revenue, color: "#22d3ee" },
+              { label: "Fuel", value: report.fuelExpense, color: "#60a5fa" },
+              { label: "Toll", value: report.tollExpense, color: "#f59e0b" },
+              { label: "Maintenance", value: report.maintenanceExpense, color: "#a78bfa" },
+              { label: "Profit", value: Math.max(report.profit, 0), color: "#14b8a6" },
+            ]}
+            formatter={formatMoney}
+          />
+        </Panel>
+      </div>
+      <Panel title="Trips For Selected Truck" icon={ClipboardList}>
+        <DataTable
+          columns={["Trip", "Route", "Start", "End", "Load", "KM", "Price", "Expense", "Profit", "Status"]}
+          rows={tripRows}
+        />
+      </Panel>
+      {activeTrip && <TripDetailLedger trip={activeTrip} onRefresh={onRefresh} />}
+      <div className="split-grid">
+        <Panel title="Maintenance Linked To Truck" icon={Wrench}>
+          <DataTable
+            columns={["Task", "Date", "Cost", "Parts", "Mechanic", "Health"]}
+            rows={report.maintenance.map((item) => [item.task, item.date, item.cost, item.parts, item.mechanic, item.health])}
+          />
+        </Panel>
+        <Panel title="Parts And Toll Details" icon={ShieldCheck}>
+          <DataTable
+            columns={["Type", "Name", "Amount / Stock", "Status"]}
+            rows={[
+              ...report.tolls.map((toll) => ["Toll", toll.plaza, toll.amount, toll.tag]),
+              ...report.parts.map((part) => ["Part", part.name, `${part.stock} in stock`, part.status]),
+            ]}
+          />
+        </Panel>
+      </div>
+    </Page>
+  );
+}
+
+function TripDetailLedger({ trip, onRefresh }) {
+  const timeline = buildMoneyTimeline(trip);
+  return (
+    <div className="trip-detail">
+      <Panel title="Trip Financial Summary" icon={BadgeIndianRupee}>
+        <div className="trip-summary">
+          <Stat label="Freight Income" value={formatMoney(trip.totalFreight)} />
+          <Stat label="Received" value={formatMoney(trip.received)} />
+          <Stat label="Pending" value={formatMoney(trip.pending)} />
+          <Stat label="Expenses" value={formatMoney(trip.totalExpenses)} />
+          <Stat label="Profit" value={formatMoney(trip.profit)} tone={trip.profit >= 0 ? "good" : "bad"} />
+          <Stat label="Margin" value={`${Number(trip.profitMargin || 0).toFixed(2)}%`} />
+          <Stat label="Distance" value={`${Number(trip.distance || 0).toLocaleString("en-IN")} km`} />
+          <Stat label="Profit/KM" value={formatMoney(trip.profitPerKm)} />
+        </div>
+      </Panel>
+      <div className="split-grid">
+        <Panel title="Trip Income Loads" icon={PackageCheck}>
+          <LedgerForm
+            endpoint="tripLoads"
+            tripId={trip.id}
+            fields={[
+              ["source", "From", trip.origin],
+              ["destination", "To", trip.destination],
+              ["party", "Party", "ABC Logistics"],
+              ["description", "Load details", "Goods / material"],
+              ["freightAmount", "Freight", "30000"],
+              ["receivedAmount", "Received", "0"],
+              ["invoiceNumber", "Invoice", ""],
+              ["lrNumber", "LR / Challan", ""],
+            ]}
+            onSaved={onRefresh}
+          />
+          <DataTable
+            columns={["From", "To", "Party", "Freight", "Received", "Pending", "Invoice", "LR", "POD"]}
+            rows={(trip.loads || []).map((load) => [load.source, load.destination, load.party, formatMoney(load.freightAmount), formatMoney(load.receivedAmount), formatMoney(load.pendingAmount), load.invoiceNumber || "-", load.lrNumber || "-", load.podStatus || "-"])}
+          />
+        </Panel>
+        <Panel title="Trip Expenses" icon={ClipboardList}>
+          <LedgerForm
+            endpoint="tripExpenses"
+            tripId={trip.id}
+            fields={[
+              ["description", "Description", "Diesel / toll / repair"],
+              ["amount", "Amount", "500"],
+              ["category", "Category optional", ""],
+              ["paidBy", "Paid by", "Driver"],
+              ["paymentMethod", "Method", "Cash"],
+              ["notes", "Notes", ""],
+            ]}
+            onSaved={onRefresh}
+          />
+          <DataTable
+            columns={["Date", "Description", "Amount", "Paid By", "Method", "Notes"]}
+            rows={(trip.expenses || []).map((expense) => [expense.expenseDate, expense.description, formatMoney(expense.amount), expense.paidBy || "-", expense.paymentMethod || "-", expense.notes || "-"])}
+          />
+        </Panel>
+      </div>
+      <div className="split-grid">
+        <Panel title="Payments / Receipts" icon={IndianRupee}>
+          <LedgerForm
+            endpoint="tripPayments"
+            tripId={trip.id}
+            fields={[
+              ["party", "Party", "ABC Logistics"],
+              ["amount", "Amount", "10000"],
+              ["mode", "Mode", "UPI / Bank / Cash"],
+              ["referenceNumber", "Reference", ""],
+              ["notes", "Notes", ""],
+            ]}
+            onSaved={onRefresh}
+          />
+          <DataTable
+            columns={["Date", "Party", "Amount", "Mode", "Reference", "Notes"]}
+            rows={(trip.payments || []).map((payment) => [payment.paymentDate, payment.party || "-", formatMoney(payment.amount), payment.mode || "-", payment.referenceNumber || "-", payment.notes || "-"])}
+          />
+        </Panel>
+        <Panel title="Running Money Timeline" icon={Route}>
+          <div className="timeline-list">
+            {timeline.map((item) => (
+              <div className={item.type === "income" ? "timeline-item income" : "timeline-item expense"} key={item.id}>
+                <span>{item.date || "-"}</span>
+                <strong>{item.label}</strong>
+                <b>{item.type === "income" ? "+" : "-"} {formatMoney(item.amount)}</b>
+                <small>Balance: {formatMoney(item.balance)}</small>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </div>
+      <Panel title="Important Trip Notes" icon={ClipboardList}>
+        <LedgerForm
+          endpoint="tripNotes"
+          tripId={trip.id}
+          fields={[["note", "Trip notepad", "Driver said clutch noise...\nPending POD...\nPayment reminder..."]]}
+          multiline
+          onSaved={onRefresh}
+        />
+        <div className="note-list">
+          {(trip.notes || []).map((note) => (
+            <article className="note-item" key={note.id}>
+              <div><strong>{note.noteDate}</strong><span>Trip note</span></div>
+              <p>{note.note}</p>
+            </article>
+          ))}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function LedgerForm({ endpoint, tripId, fields, multiline = false, onSaved }) {
+  const [form, setForm] = useState(Object.fromEntries(fields.map(([key]) => [key, ""])));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function save(event) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const session = JSON.parse(localStorage.getItem("fleetops-session") || "{}");
+      const response = await fetch(`/api/${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session.token ? { Authorization: `Bearer ${session.token}` } : {}),
+        },
+        body: JSON.stringify({ ...form, tripId }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Could not save entry");
+      setForm(Object.fromEntries(fields.map(([key]) => [key, ""])));
+      onSaved?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className="ledger-form" onSubmit={save}>
+      {fields.map(([key, label, placeholder]) => (
+        <label key={key} className={multiline ? "note-field" : ""}>
+          {label}
+          {multiline ? (
+            <textarea value={form[key]} onChange={(event) => setForm({ ...form, [key]: event.target.value })} placeholder={placeholder} rows={5} />
+          ) : (
+            <input value={form[key]} onChange={(event) => setForm({ ...form, [key]: event.target.value })} placeholder={placeholder} />
+          )}
+        </label>
+      ))}
+      <button className="primary-action" disabled={saving}><Sparkles size={18} /> {saving ? "Saving..." : "Add"}</button>
+      {error && <p className="form-error">{error}</p>}
+    </form>
+  );
+}
+
+function buildMoneyTimeline(trip) {
+  const rows = [
+    ...(trip.loads || []).map((load) => ({
+      id: `load-${load.id}`,
+      date: load.loadingDate,
+      label: `${load.party || "Load"} freight`,
+      amount: Number(load.freightAmount || 0),
+      type: "income",
+    })),
+    ...(trip.expenses || []).map((expense) => ({
+      id: `expense-${expense.id}`,
+      date: expense.expenseDate,
+      label: expense.description,
+      amount: Number(expense.amount || 0),
+      type: "expense",
+    })),
+  ].sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+
+  let balance = 0;
+  return rows.map((row) => {
+    balance += row.type === "income" ? row.amount : -row.amount;
+    return { ...row, balance };
+  });
+}
+
 function DriversPage({ drivers, onNewEntry }) {
   return (
     <Page title="Driver Management" kicker="People" onNewEntry={onNewEntry}>
@@ -637,10 +941,21 @@ function DriversPage({ drivers, onNewEntry }) {
   );
 }
 
-function VehiclesPage({ vehicles, reports, maintenance, onNewEntry }) {
+function VehiclesPage({ data, onNewEntry }) {
+  const vehicles = data.vehicles || [];
+  const reports = data.truckReports || [];
+  const trips = data.trips || [];
+  const maintenance = data.maintenance || [];
   const [selectedVehicle, setSelectedVehicle] = useState(vehicles[0]?.number || "");
   const selected = vehicles.find((vehicle) => vehicle.number === selectedVehicle) || vehicles[0];
-  const report = reports.find((item) => item.vehicle === selected?.number);
+  const tripReport = buildTripReport(data, selected?.number);
+  const report = reports.find((item) => item.vehicle === selected?.number) || {
+    trips: tripReport.trips.length,
+    revenue: tripReport.revenue,
+    expense: tripReport.totalExpense,
+    profit: tripReport.profit,
+    utilization: tripReport.trips.length ? Math.min(100, 68 + tripReport.trips.length * 7) : 0,
+  };
   const history = maintenance.filter((item) => item.vehicle === selected?.number);
 
   return (
@@ -678,6 +993,17 @@ function VehiclesPage({ vehicles, reports, maintenance, onNewEntry }) {
                 <Stat label="Utilization" value={`${report?.utilization || 0}%`} />
                 <Stat label="Services" value={history.length} />
               </div>
+              <DataTable
+                columns={["Trip", "Route", "Price", "Expense", "Profit", "Status"]}
+                rows={tripReport.trips.map((trip) => [
+                  trip.tripNo,
+                  `${trip.origin} to ${trip.destination}`,
+                  formatMoney(trip.freightPrice),
+                  formatMoney(trip.totalExpense),
+                  formatMoney(trip.profit),
+                  trip.status,
+                ])}
+              />
             </div>
           )}
         </Panel>
@@ -686,9 +1012,21 @@ function VehiclesPage({ vehicles, reports, maintenance, onNewEntry }) {
   );
 }
 
-function MaintenancePage({ maintenance, parts, onNewEntry }) {
+function MaintenancePage({ data, onNewEntry, onRefresh }) {
+  const maintenance = data.maintenance || [];
+  const parts = data.parts || [];
   return (
     <Page title="Vehicle Maintenance" kicker="History" onNewEntry={onNewEntry}>
+      <NotebookSection
+        title="Maintenance Notes"
+        icon={Wrench}
+        collection="maintenanceNotes"
+        notes={data.maintenanceNotes || []}
+        textareaLabel="Maintenance Notes"
+        totalLabel="Total Maintenance Cost"
+        placeholder={"Work completed\nPending repairs\nParts replaced\nService notes"}
+        onSaved={onRefresh}
+      />
       <div className="split-grid">
         <Panel title="Service History With Parts" icon={CalendarClock}>
           <DataTable
@@ -759,14 +1097,31 @@ function TyresPage({ tyres, onNewEntry }) {
   );
 }
 
-function FinancePage({ data, onNewEntry }) {
+function FinancePage({ data, onNewEntry, onRefresh }) {
+  const revenueTotal = sumBy(data.truckReports, "revenue");
+  const truckExpenseTotal = sumBy(data.truckReports, "expense");
+  const generalExpenseTotal = [
+    ...(data.expenseNotes || []).filter((note) => !note.vehicle).map((note) => Number(note.amount || 0)),
+    ...(data.maintenanceNotes || []).filter((note) => !note.vehicle).map((note) => Number(note.totalCost || 0)),
+  ].reduce((sum, value) => sum + value, 0);
+  const expenseTotal = truckExpenseTotal + generalExpenseTotal;
   const monthlyRows = [
-    { label: "Revenue", value: sumBy(data.truckReports, "revenue"), color: "#0f9f8f" },
-    { label: "Expense", value: sumBy(data.truckReports, "expense"), color: "#dc2626" },
-    { label: "Profit", value: sumBy(data.truckReports, "profit"), color: "#2563eb" },
+    { label: "Revenue", value: revenueTotal, color: "#0f9f8f" },
+    { label: "Expense", value: expenseTotal, color: "#dc2626" },
+    { label: "Profit", value: revenueTotal - expenseTotal, color: "#2563eb" },
   ];
   return (
     <Page title="Expense & Profit Analysis" kicker="Finance" onNewEntry={onNewEntry}>
+      <NotebookSection
+        title="Expense Notes"
+        icon={ClipboardList}
+        collection="expenseNotes"
+        notes={data.expenseNotes || []}
+        textareaLabel="Expense Details"
+        totalLabel="Total Expense"
+        placeholder={"Write any expense details here\nOne item per line\nAdd reminders or pending work"}
+        onSaved={onRefresh}
+      />
       <div className="finance-grid">
         <article className="finance-card"><IndianRupee size={22} /><span>Revenue</span><strong>{data.financialSummary.projectedRevenue}</strong></article>
         <article className="finance-card"><Fuel size={22} /><span>Fuel Expense</span><strong>{data.financialSummary.fuelExpense}</strong></article>
@@ -961,6 +1316,14 @@ function formatMoney(value) {
   return `Rs.${Number(value || 0).toLocaleString("en-IN")}`;
 }
 
+function getLocalExpenseNotes() {
+  try {
+    return JSON.parse(localStorage.getItem("fleetops-local-expense-notes") || "[]");
+  } catch {
+    return [];
+  }
+}
+
 function normalizeRouteKey(origin, destination) {
   const from = String(origin || "").trim().toLowerCase();
   const to = String(destination || "").trim().toLowerCase();
@@ -1013,6 +1376,208 @@ function buildVehicleTracker(vehicles, routes) {
     const status = String(vehicle.status || "En route").trim();
     return { ...vehicle, location, progress, status, route };
   });
+}
+
+function findTruckByQuery(data, query) {
+  const term = String(query || "").trim().toLowerCase();
+  if (term.length < 2) return null;
+  return (data.vehicles || []).find((vehicle) => {
+    const haystack = [vehicle.number, vehicle.model, vehicle.driver].join(" ").toLowerCase();
+    return haystack.includes(term);
+  }) || null;
+}
+
+function parseMoney(value) {
+  return Number(String(value || "0").replace(/[^0-9.-]/g, "")) || 0;
+}
+
+function buildTripReport(data, vehicleNumber = "") {
+  const vehicle = String(vehicleNumber || "");
+  const trips = (data.trips || []).filter((trip) => trip.vehicle === vehicle);
+  const maintenance = (data.maintenance || []).filter((item) => item.vehicle === vehicle);
+  const tolls = (data.tolls || []).filter((toll) => toll.vehicle === vehicle);
+  const parts = (data.parts || []).filter((part) => part.vehicle === vehicle);
+  const expenseNotes = (data.expenseNotes || []).filter((note) => note.vehicle === vehicle);
+  const noteExpense = expenseNotes.reduce((sum, note) => sum + Number(note.amount || 0), 0);
+  const maintenanceNotes = (data.maintenanceNotes || []).filter((note) => note.vehicle === vehicle);
+  const maintenanceNoteExpense = maintenanceNotes.reduce((sum, note) => sum + Number(note.totalCost || 0), 0);
+  const revenue = trips.reduce((sum, trip) => sum + Number(trip.freightPrice || 0), 0);
+  const fuelExpense = trips.reduce((sum, trip) => sum + Number(trip.fuelExpense || 0), 0);
+  const tollExpense = trips.reduce((sum, trip) => sum + Number(trip.tollExpense || 0), 0) || tolls.reduce((sum, toll) => sum + Number(toll.amountValue || 0), 0);
+  const driverAllowance = trips.reduce((sum, trip) => sum + Number(trip.driverAllowance || 0), 0);
+  const maintenanceExpense = trips.reduce((sum, trip) => sum + Number(trip.maintenanceExpense || 0), 0) || maintenance.reduce((sum, item) => sum + parseMoney(item.cost), 0);
+  const otherExpense = trips.reduce((sum, trip) => sum + Number(trip.otherExpense || 0), 0);
+  const baseExpense = trips.reduce((sum, trip) => sum + Number(trip.totalExpense || 0), 0) || fuelExpense + tollExpense + driverAllowance + maintenanceExpense + otherExpense;
+  const totalExpense = baseExpense + noteExpense + maintenanceNoteExpense;
+  const profit = revenue - totalExpense;
+  const km = trips.reduce((sum, trip) => sum + parseMoney(trip.km), 0);
+
+  return {
+    vehicle,
+    trips,
+    maintenance,
+    tolls,
+    parts,
+    expenseNotes,
+    maintenanceNotes,
+    noteExpense,
+    maintenanceNoteExpense,
+    revenue,
+    fuelExpense,
+    tollExpense,
+    driverAllowance,
+    maintenanceExpense,
+    otherExpense,
+    totalExpense,
+    profit,
+    km,
+  };
+}
+
+function TripSummary({ report }) {
+  return (
+    <div className="trip-summary">
+      <Stat label="Trips" value={report.trips.length} />
+      <Stat label="Total KM" value={report.km.toLocaleString("en-IN")} />
+      <Stat label="Price" value={formatMoney(report.revenue)} />
+      <Stat label="Fuel" value={formatMoney(report.fuelExpense)} />
+      <Stat label="Tolls" value={formatMoney(report.tollExpense)} />
+      <Stat label="Maintenance" value={formatMoney(report.maintenanceExpense)} />
+      <Stat label="Small Notes" value={formatMoney(report.noteExpense)} />
+      <Stat label="Expense" value={formatMoney(report.totalExpense)} />
+      <Stat label="Profit" value={formatMoney(report.profit)} tone={report.profit >= 0 ? "good" : "bad"} />
+    </div>
+  );
+}
+
+function NotebookSection({ title, icon, collection, notes, textareaLabel, totalLabel, placeholder, onSaved }) {
+  const endpoint = collection === "expenseNotes" ? "expense-notes" : "maintenance-notes";
+  const emptyForm = {
+    id: "",
+    vehicle: "",
+    text: "",
+    total: "",
+    noteDate: new Date().toISOString().slice(0, 10),
+  };
+  const [form, setForm] = useState({
+    ...emptyForm,
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const rows = notes.map((item) => ({
+    id: item.id,
+    vehicle: item.vehicle || "",
+    noteDate: item.noteDate,
+    text: collection === "expenseNotes" ? item.note : item.notes,
+    total: collection === "expenseNotes" ? item.amount : item.totalCost,
+  }));
+
+  async function saveNote(event) {
+    event.preventDefault();
+    if (!form.text.trim()) {
+      setError("Write notes first.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const session = JSON.parse(localStorage.getItem("fleetops-session") || "{}");
+      const payload = collection === "expenseNotes"
+        ? { vehicle: form.vehicle, noteDate: form.noteDate, category: "Expense Details", amount: form.total, note: form.text }
+        : { vehicle: form.vehicle, noteDate: form.noteDate, totalCost: form.total, notes: form.text };
+      const response = await fetch(`/api/${endpoint}${form.id ? `/${form.id}` : ""}`, {
+        method: form.id ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session.token ? { Authorization: `Bearer ${session.token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+      const responsePayload = await response.json();
+      if (!response.ok) throw new Error(responsePayload.error || "Could not save note");
+      setForm({ ...emptyForm });
+      onSaved?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteNote(id) {
+    setError("");
+    try {
+      const session = JSON.parse(localStorage.getItem("fleetops-session") || "{}");
+      const response = await fetch(`/api/${endpoint}/${id}`, {
+        method: "DELETE",
+        headers: session.token ? { Authorization: `Bearer ${session.token}` } : {},
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Could not delete note");
+      onSaved?.();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  return (
+    <Panel title={title} icon={icon}>
+      <form className="notebook-editor" onSubmit={saveNote}>
+        <label className="note-field">
+          {textareaLabel}
+          <textarea value={form.text} onChange={(event) => setForm({ ...form, text: event.target.value })} placeholder={placeholder} rows={7} />
+        </label>
+        <label>Vehicle / Truck<input value={form.vehicle} onChange={(event) => setForm({ ...form, vehicle: event.target.value })} placeholder="Optional truck number" /></label>
+        <label>Date<input type="date" value={form.noteDate} onChange={(event) => setForm({ ...form, noteDate: event.target.value })} /></label>
+        <label>{totalLabel}<input value={form.total} onChange={(event) => setForm({ ...form, total: event.target.value })} placeholder="0" /></label>
+        <button className="primary-action" disabled={saving}><Sparkles size={18} /> {saving ? "Saving..." : form.id ? "Update Note" : "Save Note"}</button>
+        {form.id && <button className="secondary-action" type="button" onClick={() => setForm({ ...emptyForm })}>Cancel Edit</button>}
+      </form>
+      {error && <p className="form-error">{error}</p>}
+      <div className="note-list">
+        {rows.length ? rows.map((note) => (
+          <article className="note-item" key={note.id}>
+            <div>
+              <strong>{formatMoney(note.total)}</strong>
+              <span>{note.vehicle || "General"} - {note.noteDate}</span>
+            </div>
+            <p>{note.text}</p>
+            <div className="note-actions">
+              <button type="button" onClick={() => setForm({ id: note.id, vehicle: note.vehicle, text: note.text, total: note.total, noteDate: note.noteDate })}>Edit</button>
+              <button type="button" onClick={() => deleteNote(note.id)}>Delete</button>
+            </div>
+          </article>
+        )) : <p className="empty-state">No notes yet.</p>}
+      </div>
+    </Panel>
+  );
+}
+
+function TruckTripSearchReport({ data, vehicleNumber }) {
+  const report = buildTripReport(data, vehicleNumber);
+  return (
+    <Panel title={`Search Result: ${vehicleNumber}`} icon={Search}>
+      <div className="search-result-banner">
+        <div>
+          <strong>{report.vehicle}</strong>
+          <span>{report.trips.length} trips, {report.maintenance.length} maintenance records, {report.tolls.length} toll entries</span>
+        </div>
+        <TripSummary report={report} />
+      </div>
+      <DataTable
+        columns={["Trip", "Route", "Price", "Expense", "Profit", "Status"]}
+        rows={report.trips.map((trip) => [
+          trip.tripNo,
+          `${trip.origin} to ${trip.destination}`,
+          formatMoney(trip.freightPrice),
+          formatMoney(trip.totalExpense),
+          formatMoney(trip.profit),
+          trip.status,
+        ])}
+      />
+    </Panel>
+  );
 }
 
 function CompactRows({ rows, primary, secondary, meta, value }) {
@@ -1094,6 +1659,28 @@ const entryConfigs = {
       ["weight", "Weight", "18 T"],
       ["margin", "Margin", "25%"],
       ["state", "State", "Assigned"],
+    ],
+  },
+  trips: {
+    collection: "trips",
+    title: "Add Trip",
+    fields: [
+      ["tripNo", "Trip number", "TRP-1001"],
+      ["vehicle", "Truck number", "RJ 14 GT 2291"],
+      ["driver", "Driver", "Driver name"],
+      ["origin", "Origin", "Delhi"],
+      ["destination", "Destination", "Mumbai"],
+      ["startDate", "Start date", "2026-07-31"],
+      ["endDate", "End date", "2026-08-01"],
+      ["load", "Load", "FMCG pallets"],
+      ["km", "Distance", "1418"],
+      ["freightPrice", "Freight price", "128000"],
+      ["fuelExpense", "Fuel expense", "38880"],
+      ["tollExpense", "Toll expense", "7420"],
+      ["driverAllowance", "Driver allowance", "6200"],
+      ["maintenanceExpense", "Maintenance expense", "0"],
+      ["otherExpense", "Other expense", "9400"],
+      ["status", "Status", "Completed"],
     ],
   },
   maintenance: {
@@ -1179,6 +1766,21 @@ function NewEntryModal({ page, open, onClose, onSaved }) {
         payload.fuelLiters = payload.fuelLiters || estimate.fuelLiters;
         payload.fuelCost = payload.fuelCost || estimate.fuelCost;
         payload.freightRevenue = payload.freightRevenue || estimate.revenue;
+        payload.driverAllowance = payload.driverAllowance || estimate.driverAllowance;
+        payload.otherExpense = payload.otherExpense || estimate.otherExpense;
+      }
+      if (config.collection === "trips") {
+        const estimate = estimateRoute({
+          origin: payload.origin || "",
+          destination: payload.destination || "",
+          loadWeight: Number(payload.weight || 18),
+          fuelRate: Number(payload.fuelRate || 96),
+        });
+        payload.tripNo = payload.tripNo || `TRP-${Date.now().toString().slice(-5)}`;
+        payload.km = payload.km || estimate.distance;
+        payload.freightPrice = payload.freightPrice || estimate.revenue;
+        payload.fuelExpense = payload.fuelExpense || Math.round(estimate.fuelCost);
+        payload.tollExpense = payload.tollExpense || estimate.tollEstimate;
         payload.driverAllowance = payload.driverAllowance || estimate.driverAllowance;
         payload.otherExpense = payload.otherExpense || estimate.otherExpense;
       }
