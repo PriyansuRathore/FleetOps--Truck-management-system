@@ -534,7 +534,44 @@ function Dashboard({ data, searchQuery = "", onNewEntry }) {
           </div>
         </Panel>
       </div>
+      <div className="dashboard-grid">
+        <Panel title="Expense Notes" icon={ClipboardList}>
+          <RecentNotes rows={(data.expenseNotes || []).map((note) => ({
+            id: note.id,
+            title: note.vehicle || "General",
+            amount: note.amount,
+            date: note.noteDate,
+            text: note.note,
+          }))} />
+        </Panel>
+        <Panel title="Maintenance Notes" icon={Wrench}>
+          <RecentNotes rows={(data.maintenanceNotes || []).map((note) => ({
+            id: note.id,
+            title: note.vehicle || "General",
+            amount: note.totalCost,
+            date: note.noteDate,
+            text: note.notes,
+          }))} />
+        </Panel>
+      </div>
     </Page>
+  );
+}
+
+function RecentNotes({ rows }) {
+  const latest = [...rows].slice(-4).reverse();
+  return (
+    <div className="note-list compact-notes">
+      {latest.length ? latest.map((note) => (
+        <article className="note-item" key={note.id}>
+          <div>
+            <strong>{note.title} · {formatMoney(note.amount)}</strong>
+            <span>{note.date || "-"}</span>
+          </div>
+          <p>{note.text}</p>
+        </article>
+      )) : <p className="empty-state">No notes yet.</p>}
+    </div>
   );
 }
 
@@ -1022,8 +1059,8 @@ function VehiclesPage({ data, onNewEntry }) {
                 rows={tripReport.trips.map((trip) => [
                   trip.tripNo,
                   `${trip.origin} to ${trip.destination}`,
-                  formatMoney(trip.freightPrice),
-                  formatMoney(trip.totalExpense),
+                  formatMoney(trip.totalFreight ?? trip.freightPrice),
+                  formatMoney(trip.totalExpenses ?? trip.totalExpense),
                   formatMoney(trip.profit),
                   trip.status,
                 ])}
@@ -1344,9 +1381,10 @@ function buildDashboardTotals(data) {
   const tripSummaries = data.tripSummaries || [];
   const reportRevenue = sumBy(data.truckReports || [], "revenue");
   const reportExpense = sumBy(data.truckReports || [], "expense");
-  const revenue = tripSummaries.length ? sumBy(tripSummaries, "totalFreight") : reportRevenue;
-  const expense = tripSummaries.length ? sumBy(tripSummaries, "totalExpenses") : reportExpense;
-  const profit = revenue - expense;
+  const reportProfit = sumBy(data.truckReports || [], "profit");
+  const revenue = reportRevenue || sumBy(tripSummaries, "totalFreight");
+  const expense = reportExpense || sumBy(tripSummaries, "totalExpenses");
+  const profit = reportRevenue || reportExpense ? reportProfit : revenue - expense;
   const outstanding = tripSummaries.reduce((sum, trip) => sum + Number(trip.pending || 0), 0);
   const activeTrips = (tripSummaries.length ? tripSummaries : data.trips || []).filter((trip) => !String(trip.status || "").toLowerCase().includes("complete")).length;
   return {
@@ -1436,7 +1474,8 @@ function parseMoney(value) {
 
 function buildTripReport(data, vehicleNumber = "") {
   const vehicle = String(vehicleNumber || "");
-  const trips = (data.trips || []).filter((trip) => trip.vehicle === vehicle);
+  const summaries = (data.tripSummaries || []).filter((trip) => trip.vehicle === vehicle);
+  const trips = summaries.length ? summaries : (data.trips || []).filter((trip) => trip.vehicle === vehicle);
   const maintenance = (data.maintenance || []).filter((item) => item.vehicle === vehicle);
   const tolls = (data.tolls || []).filter((toll) => toll.vehicle === vehicle);
   const parts = (data.parts || []).filter((part) => part.vehicle === vehicle);
@@ -1444,16 +1483,19 @@ function buildTripReport(data, vehicleNumber = "") {
   const noteExpense = expenseNotes.reduce((sum, note) => sum + Number(note.amount || 0), 0);
   const maintenanceNotes = (data.maintenanceNotes || []).filter((note) => note.vehicle === vehicle);
   const maintenanceNoteExpense = maintenanceNotes.reduce((sum, note) => sum + Number(note.totalCost || 0), 0);
-  const revenue = trips.reduce((sum, trip) => sum + Number(trip.freightPrice || 0), 0);
+  const revenue = trips.reduce((sum, trip) => sum + Number(trip.totalFreight ?? trip.freightPrice ?? 0), 0);
   const fuelExpense = trips.reduce((sum, trip) => sum + Number(trip.fuelExpense || 0), 0);
   const tollExpense = trips.reduce((sum, trip) => sum + Number(trip.tollExpense || 0), 0) || tolls.reduce((sum, toll) => sum + Number(toll.amountValue || 0), 0);
   const driverAllowance = trips.reduce((sum, trip) => sum + Number(trip.driverAllowance || 0), 0);
   const maintenanceExpense = trips.reduce((sum, trip) => sum + Number(trip.maintenanceExpense || 0), 0) || maintenance.reduce((sum, item) => sum + parseMoney(item.cost), 0);
   const otherExpense = trips.reduce((sum, trip) => sum + Number(trip.otherExpense || 0), 0);
-  const baseExpense = trips.reduce((sum, trip) => sum + Number(trip.totalExpense || 0), 0) || fuelExpense + tollExpense + driverAllowance + maintenanceExpense + otherExpense;
-  const totalExpense = baseExpense + noteExpense + maintenanceNoteExpense;
+  const hasSummaries = summaries.length > 0;
+  const baseExpense = hasSummaries
+    ? trips.reduce((sum, trip) => sum + Number(trip.totalExpenses || 0), 0)
+    : trips.reduce((sum, trip) => sum + Number(trip.totalExpense || 0), 0) || fuelExpense + tollExpense + driverAllowance + maintenanceExpense + otherExpense;
+  const totalExpense = hasSummaries ? baseExpense : baseExpense + noteExpense + maintenanceNoteExpense;
   const profit = revenue - totalExpense;
-  const km = trips.reduce((sum, trip) => sum + parseMoney(trip.km), 0);
+  const km = trips.reduce((sum, trip) => sum + Number(trip.distance || 0) + (trip.distance ? 0 : parseMoney(trip.km)), 0);
 
   return {
     vehicle,

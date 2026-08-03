@@ -647,13 +647,49 @@ function computedMetrics({ vehicles, routes, loads, maintenance, truckReports, t
 
 function buildTripSummaries({ trips, tripLoads, tripExpenses, tripPayments, tripNotes, fuelEntries }) {
   return trips.map((trip) => {
+    const legacyIncome = Number(trip.freightPrice || 0);
+    const legacyExpense = Number(trip.totalExpense || 0);
     const loads = tripLoads.filter((load) => load.tripId === trip.id);
+    const displayLoads = loads.length ? loads : legacyIncome > 0 ? [{
+      id: `legacy-load-${trip.id}`,
+      tripId: trip.id,
+      source: trip.origin,
+      destination: trip.destination,
+      party: "Freight",
+      description: trip.load || "Legacy freight entry",
+      freightAmount: legacyIncome,
+      loadingDate: trip.startDate,
+      unloadingDate: trip.endDate,
+      paymentStatus: "Pending",
+      receivedAmount: 0,
+      pendingAmount: legacyIncome,
+      invoiceNumber: "",
+      lrNumber: "",
+      podStatus: "Pending",
+      notes: "Created from old trip freight total",
+    }] : [];
     const expenses = tripExpenses.filter((expense) => expense.tripId === trip.id);
+    const legacyExpenses = [
+      ["Fuel", trip.fuelExpense],
+      ["Toll", trip.tollExpense],
+      ["Driver allowance", trip.driverAllowance],
+      ["Maintenance", trip.maintenanceExpense],
+      ["Other", trip.otherExpense],
+    ].filter(([, amount]) => Number(amount || 0) > 0).map(([description, amount], index) => ({
+      id: `legacy-expense-${trip.id}-${index}`,
+      tripId: trip.id,
+      description,
+      amount: Number(amount || 0),
+      expenseDate: trip.startDate,
+      category: description,
+      paidBy: trip.driver || "",
+      paymentMethod: "",
+      notes: "Created from old trip expense total",
+    }));
+    const displayExpenses = expenses.length ? expenses : legacyExpenses;
     const payments = tripPayments.filter((payment) => payment.tripId === trip.id);
     const notes = tripNotes.filter((note) => note.tripId === trip.id);
     const fuel = fuelEntries.filter((entry) => entry.tripId === trip.id || (entry.vehicle && entry.vehicle === trip.vehicle));
-    const legacyIncome = Number(trip.freightPrice || 0);
-    const legacyExpense = Number(trip.totalExpense || 0);
     const totalFreight = loads.length ? loads.reduce((sum, load) => sum + Number(load.freightAmount || 0), 0) : legacyIncome;
     const loadReceived = loads.reduce((sum, load) => sum + Number(load.receivedAmount || 0), 0);
     const paymentReceived = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
@@ -666,8 +702,8 @@ function buildTripSummaries({ trips, tripLoads, tripExpenses, tripPayments, trip
     const distance = parseMoney(trip.km);
     return {
       ...trip,
-      loads,
-      expenses,
+      loads: displayLoads,
+      expenses: displayExpenses,
       payments,
       notes,
       fuelEntries: fuel,
