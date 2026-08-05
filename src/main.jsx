@@ -22,12 +22,14 @@ import {
   Menu,
   Navigation,
   PackageCheck,
+  Pencil,
   Route,
   Search,
   Settings,
   ShieldCheck,
   Sparkles,
   Truck,
+  Trash2,
   UserRoundCheck,
   Wrench,
   X,
@@ -109,6 +111,7 @@ function App() {
   const [apiStatus, setApiStatus] = useState("Connecting");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [entryOpen, setEntryOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -168,6 +171,10 @@ function App() {
               data={dashboard}
               searchQuery={searchQuery}
               onNewEntry={() => setEntryOpen(true)}
+              onEditEntry={(entry) => {
+                setEditingEntry(entry);
+                setEntryOpen(true);
+              }}
               onRefresh={() => fetchDashboard(setDashboard, setApiStatus)}
             />
           </motion.div>
@@ -175,9 +182,14 @@ function App() {
         <NewEntryModal
           page={activePage}
           open={entryOpen}
-          onClose={() => setEntryOpen(false)}
+          editingEntry={editingEntry}
+          onClose={() => {
+            setEntryOpen(false);
+            setEditingEntry(null);
+          }}
           onSaved={() => {
             setEntryOpen(false);
+            setEditingEntry(null);
             fetchDashboard(setDashboard, setApiStatus);
           }}
         />
@@ -415,12 +427,12 @@ function Topbar({ user, apiStatus, searchQuery, setSearchQuery, onLogout, onMenu
   );
 }
 
-function PageRouter({ page, data, searchQuery, onNewEntry, onRefresh }) {
+function PageRouter({ page, data, searchQuery, onNewEntry, onEditEntry, onRefresh }) {
   const pages = {
     dashboard: <Dashboard data={data} searchQuery={searchQuery} onNewEntry={onNewEntry} />,
     routes: <RoutePage routes={data.routes} tolls={data.tolls} onNewEntry={onNewEntry} />,
     loads: <LoadsPage loads={data.loads} onNewEntry={onNewEntry} />,
-    trips: <TripsPage data={data} searchQuery={searchQuery} onNewEntry={onNewEntry} onRefresh={onRefresh} />,
+    trips: <TripsPage data={data} searchQuery={searchQuery} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
     drivers: <DriversPage drivers={data.drivers} onNewEntry={onNewEntry} />,
     vehicles: <VehiclesPage data={data} onNewEntry={onNewEntry} />,
     maintenance: <MaintenancePage data={data} onNewEntry={onNewEntry} onRefresh={onRefresh} />,
@@ -703,7 +715,7 @@ function LoadsPage({ loads, onNewEntry }) {
   );
 }
 
-function TripsPage({ data, searchQuery = "", onNewEntry, onRefresh }) {
+function TripsPage({ data, searchQuery = "", onNewEntry, onEditEntry, onRefresh }) {
   const vehicles = data.vehicles || [];
   const searchedTruck = findTruckByQuery(data, searchQuery);
   const [selectedVehicle, setSelectedVehicle] = useState("");
@@ -774,7 +786,7 @@ function TripsPage({ data, searchQuery = "", onNewEntry, onRefresh }) {
           rows={tripRows}
         />
       </Panel>
-      {activeTrip && <TripDetailLedger trip={activeTrip} onRefresh={onRefresh} />}
+      {activeTrip && <TripDetailLedger trip={activeTrip} onEditTrip={() => onEditEntry(activeTrip)} onRefresh={onRefresh} />}
       <div className="split-grid">
         <Panel title="Maintenance Linked To Truck" icon={Wrench}>
           <DataTable
@@ -796,10 +808,32 @@ function TripsPage({ data, searchQuery = "", onNewEntry, onRefresh }) {
   );
 }
 
-function TripDetailLedger({ trip, onRefresh }) {
+function TripDetailLedger({ trip, onEditTrip, onRefresh }) {
   const timeline = buildMoneyTimeline(trip);
+  const [deleting, setDeleting] = useState(false);
+
+  async function deleteTrip() {
+    if (!window.confirm(`Delete trip ${trip.tripNo}? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      const session = JSON.parse(localStorage.getItem("fleetops-session") || "{}");
+      const response = await fetch(`/api/trips/${trip.id}`, { method: "DELETE", headers: session.token ? { Authorization: `Bearer ${session.token}` } : {} });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Could not delete trip");
+      onRefresh?.();
+    } catch (error) {
+      window.alert(error.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="trip-detail">
+      <div className="record-actions">
+        <button className="secondary-action" type="button" onClick={onEditTrip}><Pencil size={16} /> Edit trip</button>
+        <button className="danger-action" type="button" disabled={deleting} onClick={deleteTrip}><Trash2 size={16} /> {deleting ? "Deleting..." : "Delete trip"}</button>
+      </div>
       <Panel title="Trip Financial Summary" icon={BadgeIndianRupee}>
         <div className="trip-summary">
           <Stat label="Freight Income" value={formatMoney(trip.totalFreight)} />
@@ -887,6 +921,7 @@ function TripDetailLedger({ trip, onRefresh }) {
         </Panel>
       </div>
       <Panel title="Important Trip Notes" icon={ClipboardList}>
+        {trip.registrationNotes && <article className="note-item"><div><strong>Trip register note</strong><span>Saved with trip</span></div><p>{trip.registrationNotes}</p></article>}
         <LedgerForm
           endpoint="tripNotes"
           tripId={trip.id}
@@ -1765,6 +1800,7 @@ const entryConfigs = {
       ["driverAllowance", "Driver allowance", "6200"],
       ["maintenanceExpense", "Maintenance expense", "0"],
       ["otherExpense", "Other expense", "9400"],
+      ["notes", "Trip notes", "Special instructions, delivery notes, or reminders", "multiline"],
       ["status", "Status", "Completed"],
     ],
   },
@@ -1815,16 +1851,16 @@ const entryConfigs = {
   },
 };
 
-function NewEntryModal({ page, open, onClose, onSaved }) {
+function NewEntryModal({ page, open, editingEntry, onClose, onSaved }) {
   const config = entryConfigs[page] || entryConfigs.dashboard;
   const [form, setForm] = useState({});
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setForm(Object.fromEntries(config.fields.map(([key]) => [key, ""])));
+    setForm(Object.fromEntries(config.fields.map(([key]) => [key, editingEntry?.[key] ?? ""])));
     setError("");
-  }, [config.title, open]);
+  }, [config.title, editingEntry, open]);
 
   if (!open) return null;
 
@@ -1854,23 +1890,13 @@ function NewEntryModal({ page, open, onClose, onSaved }) {
         payload.driverAllowance = payload.driverAllowance || estimate.driverAllowance;
         payload.otherExpense = payload.otherExpense || estimate.otherExpense;
       }
-      if (config.collection === "trips") {
-        const estimate = estimateRoute({
-          origin: payload.origin || "",
-          destination: payload.destination || "",
-          loadWeight: Number(payload.weight || 18),
-          fuelRate: Number(payload.fuelRate || 96),
-        });
+      if (config.collection === "trips" && !editingEntry) {
+        const estimate = estimateRoute({ origin: payload.origin || "", destination: payload.destination || "", loadWeight: Number(payload.weight || 18), fuelRate: Number(payload.fuelRate || 96) });
         payload.tripNo = payload.tripNo || `TRP-${Date.now().toString().slice(-5)}`;
         payload.km = payload.km || estimate.distance;
-        payload.freightPrice = payload.freightPrice || estimate.revenue;
-        payload.fuelExpense = payload.fuelExpense || Math.round(estimate.fuelCost);
-        payload.tollExpense = payload.tollExpense || estimate.tollEstimate;
-        payload.driverAllowance = payload.driverAllowance || estimate.driverAllowance;
-        payload.otherExpense = payload.otherExpense || estimate.otherExpense;
       }
-      const response = await fetch(`/api/${config.collection}`, {
-        method: "POST",
+      const response = await fetch(`/api/${config.collection}${editingEntry ? `/${editingEntry.id}` : ""}`, {
+        method: editingEntry ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
           ...(session.token ? { Authorization: `Bearer ${session.token}` } : {}),
@@ -1899,21 +1925,17 @@ function NewEntryModal({ page, open, onClose, onSaved }) {
         <div className="entry-head">
           <div>
             <p>New Entry</p>
-            <h2>{config.title}</h2>
+            <h2>{editingEntry ? `Edit ${config.title.replace("Add ", "")}` : config.title}</h2>
           </div>
           <button className="icon-button" onClick={onClose} type="button" aria-label="Close">
             <X size={18} />
           </button>
         </div>
         <div className="entry-grid">
-          {config.fields.map(([key, label, placeholder]) => (
+          {config.fields.map(([key, label, placeholder, inputType]) => (
             <label key={key}>
               {label}
-              <input
-                value={form[key] || ""}
-                placeholder={placeholder}
-                onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}
-              />
+              {inputType === "multiline" ? <textarea value={form[key] || ""} placeholder={placeholder} rows={4} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} /> : <input value={form[key] || ""} placeholder={placeholder} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} />}
             </label>
           ))}
         </div>

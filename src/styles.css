@@ -831,6 +831,31 @@ textarea {
   margin-top: 12px;
 }
 
+.record-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.record-actions button {
+  align-items: center;
+  display: inline-flex;
+  gap: 7px;
+  justify-content: center;
+}
+
+.entry-grid label:has(textarea) {
+  grid-column: 1 / -1;
+}
+
+.danger-action {
+  background: rgba(220, 38, 38, 0.16);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  color: #fecaca;
+  font-weight: 900;
+  min-height: 42px;
+}
+
 .timeline-list {
   display: grid;
   gap: 10px;

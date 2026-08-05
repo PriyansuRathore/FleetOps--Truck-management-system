@@ -91,6 +91,7 @@ const collectionConfig = {
       "other_expense",
       "total_expense",
       "profit",
+      "notes",
       "status",
     ],
     ownerScoped: true,
@@ -114,8 +115,8 @@ const collectionConfig = {
         driver_allowance: driverAllowance,
         maintenance_expense: maintenanceExpense,
         other_expense: otherExpense,
-        total_expense: Number(payload.total_expense ?? payload.totalExpense ?? totalExpense),
-        profit: Number(payload.profit ?? freightPrice - totalExpense),
+        total_expense: totalExpense,
+        profit: freightPrice - totalExpense,
       };
     },
     toApi(row) {
@@ -138,6 +139,7 @@ const collectionConfig = {
         otherExpense: row.other_expense,
         totalExpense: row.total_expense,
         profit: row.profit,
+        notes: row.notes,
         status: row.status,
       };
     },
@@ -559,10 +561,11 @@ async function getCollection(resource, session = null, options = {}) {
 async function createRecord(resource, payload, session = null) {
   if (!pool) {
     const db = await readJsonDb();
+    const tripPayload = resource === "trips" ? calculateTripPayload(payload) : payload;
     const record = {
-      ...payload,
-      id: payload.id || nextId(db[resource], resource.slice(0, 3).toUpperCase()),
-      ownerId: collectionConfig[resource]?.ownerScoped ? session?.sub : payload.ownerId,
+      ...tripPayload,
+      id: tripPayload.id || nextId(db[resource], resource.slice(0, 3).toUpperCase()),
+      ownerId: collectionConfig[resource]?.ownerScoped ? session?.sub : tripPayload.ownerId,
     };
     db[resource].push(record);
     await writeJsonDb(db);
@@ -594,7 +597,8 @@ async function updateRecord(resource, id, payload, session = null) {
     const db = await readJsonDb();
     const index = db[resource].findIndex((item) => item.id === id && (!collectionConfig[resource]?.ownerScoped || item.ownerId === session?.sub));
     if (index === -1) return null;
-    db[resource][index] = { ...db[resource][index], ...payload, id };
+    const merged = { ...db[resource][index], ...payload, id };
+    db[resource][index] = resource === "trips" ? calculateTripPayload(merged) : merged;
     await writeJsonDb(db);
     return resource === "users" ? publicUser(db[resource][index]) : db[resource][index];
   }
@@ -645,10 +649,25 @@ function computedMetrics({ vehicles, routes, loads, maintenance, truckReports, t
   ];
 }
 
+function calculateTripPayload(payload) {
+  const freightPrice = Number(payload.freightPrice ?? payload.freight_price ?? payload.price ?? 0);
+  const fuelExpense = Number(payload.fuelExpense ?? payload.fuel_expense ?? 0);
+  const tollExpense = Number(payload.tollExpense ?? payload.toll_expense ?? 0);
+  const driverAllowance = Number(payload.driverAllowance ?? payload.driver_allowance ?? 0);
+  const maintenanceExpense = Number(payload.maintenanceExpense ?? payload.maintenance_expense ?? 0);
+  const otherExpense = Number(payload.otherExpense ?? payload.other_expense ?? 0);
+  const totalExpense = fuelExpense + tollExpense + driverAllowance + maintenanceExpense + otherExpense;
+  return { ...payload, totalExpense, profit: freightPrice - totalExpense };
+}
+
 function buildTripSummaries({ trips, tripLoads, tripExpenses, tripPayments, tripNotes, fuelEntries }) {
   return trips.map((trip) => {
     const legacyIncome = Number(trip.freightPrice || 0);
-    const legacyExpense = Number(trip.totalExpense || 0);
+    const legacyExpense = Number(trip.fuelExpense || 0)
+      + Number(trip.tollExpense || 0)
+      + Number(trip.driverAllowance || 0)
+      + Number(trip.maintenanceExpense || 0)
+      + Number(trip.otherExpense || 0);
     const loads = tripLoads.filter((load) => load.tripId === trip.id);
     const displayLoads = loads.length ? loads : legacyIncome > 0 ? [{
       id: `legacy-load-${trip.id}`,
@@ -669,24 +688,7 @@ function buildTripSummaries({ trips, tripLoads, tripExpenses, tripPayments, trip
       notes: "Created from old trip freight total",
     }] : [];
     const expenses = tripExpenses.filter((expense) => expense.tripId === trip.id);
-    const legacyExpenses = [
-      ["Fuel", trip.fuelExpense],
-      ["Toll", trip.tollExpense],
-      ["Driver allowance", trip.driverAllowance],
-      ["Maintenance", trip.maintenanceExpense],
-      ["Other", trip.otherExpense],
-    ].filter(([, amount]) => Number(amount || 0) > 0).map(([description, amount], index) => ({
-      id: `legacy-expense-${trip.id}-${index}`,
-      tripId: trip.id,
-      description,
-      amount: Number(amount || 0),
-      expenseDate: trip.startDate,
-      category: description,
-      paidBy: trip.driver || "",
-      paymentMethod: "",
-      notes: "Created from old trip expense total",
-    }));
-    const displayExpenses = expenses.length ? expenses : legacyExpenses;
+    const displayExpenses = expenses;
     const payments = tripPayments.filter((payment) => payment.tripId === trip.id);
     const notes = tripNotes.filter((note) => note.tripId === trip.id);
     const fuel = fuelEntries.filter((entry) => entry.tripId === trip.id || (entry.vehicle && entry.vehicle === trip.vehicle));
@@ -706,6 +708,7 @@ function buildTripSummaries({ trips, tripLoads, tripExpenses, tripPayments, trip
       expenses: displayExpenses,
       payments,
       notes,
+      registrationNotes: trip.notes || "",
       fuelEntries: fuel,
       totalFreight,
       received,

@@ -75,6 +75,7 @@ create table if not exists trips (
   other_expense integer default 0,
   total_expense integer default 0,
   profit integer default 0,
+  notes text,
   status text not null
 );
 
@@ -230,6 +231,7 @@ alter table drivers add column if not exists owner_id text;
 alter table routes add column if not exists owner_id text;
 alter table loads add column if not exists owner_id text;
 alter table trips add column if not exists owner_id text;
+alter table trips add column if not exists notes text;
 alter table expense_notes add column if not exists owner_id text;
 alter table maintenance_notes add column if not exists owner_id text;
 alter table trip_loads add column if not exists owner_id text;
