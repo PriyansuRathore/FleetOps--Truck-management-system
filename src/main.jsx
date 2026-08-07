@@ -786,6 +786,7 @@ function TripsPage({ data, searchQuery = "", onNewEntry, onEditEntry, onRefresh 
           rows={tripRows}
         />
       </Panel>
+      <TripDateRangeAnalysis trips={data.tripSummaries || []} />
       {activeTrip && <TripDetailLedger trip={activeTrip} onEditTrip={() => onEditEntry(activeTrip)} onRefresh={onRefresh} />}
       <div className="split-grid">
         <Panel title="Maintenance Linked To Truck" icon={Wrench}>
@@ -805,6 +806,56 @@ function TripsPage({ data, searchQuery = "", onNewEntry, onEditEntry, onRefresh 
         </Panel>
       </div>
     </Page>
+  );
+}
+
+function TripDateRangeAnalysis({ trips }) {
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const hasRange = Boolean(startDate && endDate && startDate <= endDate);
+  const selectedTrips = hasRange ? trips.filter((trip) => {
+    const tripStart = trip.startDate || trip.endDate || "";
+    const tripEnd = trip.endDate || trip.startDate || "";
+    return tripStart <= endDate && tripEnd >= startDate;
+  }) : [];
+  const revenue = sumBy(selectedTrips, "totalFreight");
+  const expense = sumBy(selectedTrips, "totalExpenses");
+  const profit = revenue - expense;
+
+  return (
+    <div className="split-grid">
+      <Panel title="Trip Calendar Report" icon={CalendarClock}>
+        <div className="date-range-form">
+          <label>From date<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
+          <label>To date<input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
+        </div>
+        {hasRange ? (
+          <>
+            <div className="trip-summary">
+              <Stat label="Trips" value={selectedTrips.length} />
+              <Stat label="Revenue" value={formatMoney(revenue)} />
+              <Stat label="Expense" value={formatMoney(expense)} />
+              <Stat label="Profit / Loss" value={formatMoney(profit)} tone={profit >= 0 ? "good" : "bad"} />
+            </div>
+            <DataTable
+              columns={["Trip", "Truck", "Route", "Start", "End", "Revenue", "Expense", "Profit"]}
+              rows={selectedTrips.map((trip) => [trip.tripNo, trip.vehicle, `${trip.origin} to ${trip.destination}`, trip.startDate || "-", trip.endDate || "-", formatMoney(trip.totalFreight), formatMoney(trip.totalExpenses), formatMoney(trip.profit)])}
+            />
+          </>
+        ) : <p className="empty-state">Select a valid from and to date to see every trip in that timeline.</p>}
+      </Panel>
+      <Panel title="Selected Period Calculation Chart" icon={BarChart3}>
+        {hasRange ? <VerticalBars
+          rows={[
+            { label: "Revenue", value: revenue, color: "#22d3ee" },
+            { label: "Expense", value: expense, color: "#fb7185" },
+            { label: "Profit", value: Math.max(profit, 0), color: "#14b8a6" },
+            { label: "Loss", value: Math.abs(Math.min(profit, 0)), color: "#dc2626" },
+          ]}
+          formatter={formatMoney}
+        /> : <p className="empty-state">The calculation chart appears after choosing both dates.</p>}
+      </Panel>
+    </div>
   );
 }
 
