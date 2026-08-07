@@ -185,6 +185,7 @@ create table if not exists tolls (
 
 create table if not exists tyres (
   id text primary key,
+  vehicle text,
   position text not null,
   tyre text not null,
   tread text not null,
@@ -242,6 +243,9 @@ alter table fuel_entries add column if not exists owner_id text;
 alter table maintenance add column if not exists owner_id text;
 alter table tolls add column if not exists owner_id text;
 alter table tyres add column if not exists owner_id text;
+alter table tyres add column if not exists vehicle text;
+alter table tyres alter column tyre type text using tyre::text;
+alter table maintenance alter column cost type text using cost::text;
 alter table expenses add column if not exists owner_id text;
 alter table parts add column if not exists owner_id text;
 alter table truck_reports add column if not exists owner_id text;

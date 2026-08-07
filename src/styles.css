@@ -802,6 +802,19 @@ label {
   margin-bottom: 12px;
 }
 
+.vehicle-note-selector,
+.date-range-form {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  margin-bottom: 12px;
+}
+
+.vehicle-note-selector .empty-state {
+  align-self: end;
+  margin: 0;
+}
+
 .notebook-editor .note-field,
 .ledger-form .note-field {
   grid-column: 1 / -1;

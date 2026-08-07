@@ -402,7 +402,7 @@ const collectionConfig = {
   },
   tyres: {
     table: "tyres",
-    columns: ["id", "position", "tyre", "tread", "rotation"],
+    columns: ["id", "vehicle", "position", "tyre", "tread", "rotation"],
     ownerScoped: true,
   },
   expenses: {

@@ -437,7 +437,7 @@ function PageRouter({ page, data, searchQuery, onNewEntry, onEditEntry, onRefres
     vehicles: <VehiclesPage data={data} onNewEntry={onNewEntry} />,
     maintenance: <MaintenancePage data={data} onNewEntry={onNewEntry} onRefresh={onRefresh} />,
     tolls: <TollsPage tolls={data.tolls} routes={data.routes} onNewEntry={onNewEntry} />,
-    tyres: <TyresPage tyres={data.tyres} onNewEntry={onNewEntry} />,
+    tyres: <TyresPage tyres={data.tyres} vehicles={data.vehicles} onNewEntry={onNewEntry} />,
     finance: <FinancePage data={data} onNewEntry={onNewEntry} onRefresh={onRefresh} />,
     settings: <SettingsPage onNewEntry={onNewEntry} />,
   };
@@ -1172,11 +1172,21 @@ function TollsPage({ tolls, routes, onNewEntry }) {
   );
 }
 
-function TyresPage({ tyres, onNewEntry }) {
+function TyresPage({ tyres, vehicles, onNewEntry }) {
+  const [selectedVehicle, setSelectedVehicle] = useState("");
+  const vehicleNumbers = [...new Set([...(vehicles || []).map((vehicle) => vehicle.number), ...(tyres || []).map((tyre) => tyre.vehicle)])].filter(Boolean);
+  const visibleTyres = selectedVehicle ? tyres.filter((tyre) => tyre.vehicle === selectedVehicle) : tyres;
   return (
     <Page title="Tyre Tracking & Rotation" kicker="Safety" onNewEntry={onNewEntry}>
       <div className="split-grid">
         <Panel title="Tyre Map" icon={Gauge}>
+          <label>
+            Select truck number
+            <select value={selectedVehicle} onChange={(event) => setSelectedVehicle(event.target.value)}>
+              <option value="">All trucks</option>
+              {vehicleNumbers.map((number) => <option key={number} value={number}>{number}</option>)}
+            </select>
+          </label>
           <div className="tyre-layout">
             <div className="axle"><span /><span /></div>
             <div className="axle rear"><span /><span /></div>
@@ -1184,8 +1194,8 @@ function TyresPage({ tyres, onNewEntry }) {
         </Panel>
         <Panel title="Rotation Register" icon={ClipboardList}>
           <DataTable
-            columns={["Position", "Tyre", "Tread", "Rotation"]}
-            rows={tyres.map((tyre) => [tyre.position, tyre.tyre, tyre.tread, tyre.rotation])}
+            columns={["Truck", "Position", "Tyre", "Tread", "Rotation"]}
+            rows={visibleTyres.map((tyre) => [tyre.vehicle || "Not assigned", tyre.position, tyre.tyre, tyre.tread, tyre.rotation])}
           />
         </Panel>
       </div>
@@ -1216,8 +1226,11 @@ function FinancePage({ data, onNewEntry, onRefresh }) {
         textareaLabel="Expense Details"
         totalLabel="Total Expense"
         placeholder={"Write any expense details here\nOne item per line\nAdd reminders or pending work"}
+        vehicleNumbers={(data.vehicles || []).map((vehicle) => vehicle.number)}
+        requireVehicle
         onSaved={onRefresh}
       />
+      <DateRangeAnalysis data={data} />
       <div className="finance-grid">
         <article className="finance-card"><IndianRupee size={22} /><span>Revenue</span><strong>{data.financialSummary.projectedRevenue}</strong></article>
         <article className="finance-card"><Fuel size={22} /><span>Fuel Expense</span><strong>{data.financialSummary.fuelExpense}</strong></article>
@@ -1570,7 +1583,43 @@ function TripSummary({ report }) {
   );
 }
 
-function NotebookSection({ title, icon, collection, notes, textareaLabel, totalLabel, placeholder, onSaved }) {
+function DateRangeAnalysis({ data }) {
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const hasRange = Boolean(startDate && endDate && startDate <= endDate);
+  const inRange = (date) => hasRange && Boolean(date) && date >= startDate && date <= endDate;
+  const trips = (data.tripSummaries || []).filter((trip) => inRange(trip.startDate));
+  const tripRevenue = sumBy(trips, "totalFreight");
+  const tripExpense = sumBy(trips, "totalExpenses");
+  const noteExpense = (data.expenseNotes || []).filter((note) => inRange(note.noteDate)).reduce((sum, note) => sum + Number(note.amount || 0), 0);
+  const maintenanceExpense = (data.maintenanceNotes || []).filter((note) => inRange(note.noteDate)).reduce((sum, note) => sum + Number(note.totalCost || 0), 0);
+  const totalExpense = tripExpense + noteExpense + maintenanceExpense;
+
+  return (
+    <Panel title="Date-wise Profit & Trip Report" icon={CalendarClock}>
+      <div className="date-range-form">
+        <label>From date<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
+        <label>To date<input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
+      </div>
+      {hasRange ? (
+        <>
+          <div className="trip-summary">
+            <Stat label="Trips" value={trips.length} />
+            <Stat label="Revenue" value={formatMoney(tripRevenue)} />
+            <Stat label="Expense" value={formatMoney(totalExpense)} />
+            <Stat label="Profit / Loss" value={formatMoney(tripRevenue - totalExpense)} tone={tripRevenue - totalExpense >= 0 ? "good" : "bad"} />
+          </div>
+          <DataTable
+            columns={["Trip", "Truck", "Start", "Revenue", "Expense", "Profit"]}
+            rows={trips.map((trip) => [trip.tripNo, trip.vehicle, trip.startDate || "-", formatMoney(trip.totalFreight), formatMoney(trip.totalExpenses), formatMoney(trip.profit)])}
+          />
+        </>
+      ) : <p className="empty-state">Choose a valid start and end date to see trips, expenses, profit and loss.</p>}
+    </Panel>
+  );
+}
+
+function NotebookSection({ title, icon, collection, notes, textareaLabel, totalLabel, placeholder, vehicleNumbers = [], requireVehicle = false, onSaved }) {
   const endpoint = collection === "expenseNotes" ? "expense-notes" : "maintenance-notes";
   const emptyForm = {
     id: "",
@@ -1584,6 +1633,7 @@ function NotebookSection({ title, icon, collection, notes, textareaLabel, totalL
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [selectedVehicle, setSelectedVehicle] = useState("");
 
   const rows = notes.map((item) => ({
     id: item.id,
@@ -1616,7 +1666,7 @@ function NotebookSection({ title, icon, collection, notes, textareaLabel, totalL
       });
       const responsePayload = await response.json();
       if (!response.ok) throw new Error(responsePayload.error || "Could not save note");
-      setForm({ ...emptyForm });
+      setForm({ ...emptyForm, vehicle: requireVehicle ? selectedVehicle : "" });
       onSaved?.();
     } catch (err) {
       setError(err.message);
@@ -1643,17 +1693,28 @@ function NotebookSection({ title, icon, collection, notes, textareaLabel, totalL
 
   return (
     <Panel title={title} icon={icon}>
-      <form className="notebook-editor" onSubmit={saveNote}>
+      {requireVehicle && <div className="vehicle-note-selector">
+        <label>
+          Truck number
+          <input list="expense-truck-options" value={selectedVehicle} onChange={(event) => {
+            setSelectedVehicle(event.target.value);
+            setForm((current) => ({ ...current, vehicle: event.target.value }));
+          }} placeholder="Enter or select truck number" />
+          <datalist id="expense-truck-options">{vehicleNumbers.filter(Boolean).map((number) => <option key={number} value={number} />)}</datalist>
+        </label>
+        {!selectedVehicle && <p className="empty-state">Enter a truck number to open its expense section.</p>}
+      </div>}
+      {(!requireVehicle || selectedVehicle) && <form className="notebook-editor" onSubmit={saveNote}>
         <label className="note-field">
           {textareaLabel}
           <textarea value={form.text} onChange={(event) => setForm({ ...form, text: event.target.value })} placeholder={placeholder} rows={7} />
         </label>
-        <label>Vehicle / Truck<input value={form.vehicle} onChange={(event) => setForm({ ...form, vehicle: event.target.value })} placeholder="Optional truck number" /></label>
+        {!requireVehicle && <label>Vehicle / Truck<input value={form.vehicle} onChange={(event) => setForm({ ...form, vehicle: event.target.value })} placeholder="Optional truck number" /></label>}
         <label>Date<input type="date" value={form.noteDate} onChange={(event) => setForm({ ...form, noteDate: event.target.value })} /></label>
         <label>{totalLabel}<input value={form.total} onChange={(event) => setForm({ ...form, total: event.target.value })} placeholder="0" /></label>
         <button className="primary-action" disabled={saving}><Sparkles size={18} /> {saving ? "Saving..." : form.id ? "Update Note" : "Save Note"}</button>
         {form.id && <button className="secondary-action" type="button" onClick={() => setForm({ ...emptyForm })}>Cancel Edit</button>}
-      </form>
+      </form>}
       {error && <p className="form-error">{error}</p>}
       <div className="note-list">
         {rows.length ? rows.map((note) => (
@@ -1664,7 +1725,7 @@ function NotebookSection({ title, icon, collection, notes, textareaLabel, totalL
             </div>
             <p>{note.text}</p>
             <div className="note-actions">
-              <button type="button" onClick={() => setForm({ id: note.id, vehicle: note.vehicle, text: note.text, total: note.total, noteDate: note.noteDate })}>Edit</button>
+              <button type="button" onClick={() => { setSelectedVehicle(note.vehicle); setForm({ id: note.id, vehicle: note.vehicle, text: note.text, total: note.total, noteDate: note.noteDate }); }}>Edit</button>
               <button type="button" onClick={() => deleteNote(note.id)}>Delete</button>
             </div>
           </article>
@@ -1833,6 +1894,7 @@ const entryConfigs = {
     collection: "tyres",
     title: "Add Tyre",
     fields: [
+      ["vehicle", "Truck number", "RJ 14 GT 2291"],
       ["position", "Position", "Front Left"],
       ["tyre", "Tyre ID", "TY-1001"],
       ["tread", "Tread", "80%"],
