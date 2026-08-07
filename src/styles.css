@@ -1381,6 +1381,30 @@ textarea {
   display: block;
 }
 
+.backup-box {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr auto;
+}
+
+.backup-box span {
+  color: var(--muted);
+  display: block;
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
+.backup-status {
+  color: var(--teal);
+  font-weight: 800;
+  margin: 14px 0 0;
+}
+
+.file-input {
+  display: none;
+}
+
 .scrim {
   background: rgba(18, 27, 34, 0.42);
   inset: 0;

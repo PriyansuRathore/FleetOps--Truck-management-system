@@ -439,7 +439,7 @@ function PageRouter({ page, data, searchQuery, onNewEntry, onEditEntry, onRefres
     tolls: <TollsPage tolls={data.tolls} routes={data.routes} onNewEntry={onNewEntry} />,
     tyres: <TyresPage tyres={data.tyres} vehicles={data.vehicles} onNewEntry={onNewEntry} />,
     finance: <FinancePage data={data} onNewEntry={onNewEntry} onRefresh={onRefresh} />,
-    settings: <SettingsPage onNewEntry={onNewEntry} />,
+    settings: <SettingsPage onNewEntry={onNewEntry} onRefresh={onRefresh} />,
   };
   return pages[page] || pages.dashboard;
 }
@@ -1318,7 +1318,7 @@ function FinancePage({ data, onNewEntry, onRefresh }) {
   );
 }
 
-function SettingsPage({ onNewEntry }) {
+function SettingsPage({ onNewEntry, onRefresh }) {
   return (
     <Page title="System Settings" kicker="Admin" onNewEntry={onNewEntry}>
       <div className="split-grid">
@@ -1338,7 +1338,84 @@ function SettingsPage({ onNewEntry }) {
           </div>
         </Panel>
       </div>
+      <BackupSection onImported={onRefresh} />
     </Page>
+  );
+}
+
+function BackupSection({ onImported }) {
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  function authHeaders() {
+    const session = JSON.parse(localStorage.getItem("fleetops-session") || "{}");
+    return session.token ? { Authorization: `Bearer ${session.token}` } : {};
+  }
+
+  async function exportBackup() {
+    setBusy(true);
+    setStatus("");
+    try {
+      const response = await fetch("/api/backup/export", { headers: authHeaders() });
+      const backup = await response.json();
+      if (!response.ok) throw new Error(backup.error || "Could not export backup");
+      const file = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(file);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `fleetops-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setStatus("Backup downloaded successfully.");
+    } catch (error) {
+      setStatus(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function importBackup(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setStatus("");
+    try {
+      const backup = JSON.parse(await file.text());
+      if (!window.confirm("Importing this backup will permanently replace all current workspace data. Continue?")) return;
+      setBusy(true);
+      const response = await fetch("/api/backup/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(backup),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not import backup");
+      setStatus(`${result.imported} records restored from backup.`);
+      onImported?.();
+    } catch (error) {
+      setStatus(error.message || "Choose a valid FleetOps backup file.");
+    } finally {
+      setBusy(false);
+      event.target.value = "";
+    }
+  }
+
+  return (
+    <Panel title="Data Backup & Restore" icon={ShieldCheck}>
+      <div className="backup-box">
+        <div>
+          <strong>Export workspace data</strong>
+          <span>Downloads trips, vehicles, tyres, maintenance and expense records as a JSON backup file.</span>
+        </div>
+        <button className="secondary-action" type="button" disabled={busy} onClick={exportBackup}>Export Backup</button>
+        <div>
+          <strong>Import and replace data</strong>
+          <span>Restores a FleetOps backup file and permanently replaces the current workspace records.</span>
+        </div>
+        <input id="fleetops-backup-file" className="file-input" type="file" accept="application/json,.json" onChange={importBackup} />
+        <button className="danger-action" type="button" disabled={busy} onClick={() => document.getElementById("fleetops-backup-file")?.click()}>{busy ? "Working..." : "Import Backup"}</button>
+      </div>
+      {status && <p className="backup-status">{status}</p>}
+    </Panel>
   );
 }
 

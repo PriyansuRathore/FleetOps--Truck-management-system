@@ -444,6 +444,9 @@ const collectionConfig = {
 };
 
 const collections = new Set(Object.keys(collectionConfig));
+const backupCollections = Object.entries(collectionConfig)
+  .filter(([resource, config]) => resource !== "users" && config.ownerScoped)
+  .map(([resource]) => resource);
 const resourceAliases = {
   "expense-notes": "expenseNotes",
   expense_notes: "expenseNotes",
@@ -635,6 +638,49 @@ async function deleteRecord(resource, id, session = null) {
     : `delete from ${config.table} where id = $1`;
   const result = await pgQuery(sql, config.ownerScoped && session ? [id, session.sub] : [id]);
   return result.rowCount > 0;
+}
+
+async function exportWorkspaceBackup(session) {
+  const collections = Object.fromEntries(await Promise.all(
+    backupCollections.map(async (resource) => [resource, await getCollection(resource, session)])
+  ));
+  return {
+    format: "fleetops-backup",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    collections,
+  };
+}
+
+async function replaceWorkspaceBackup(session, backup) {
+  if (backup?.format !== "fleetops-backup" || backup?.version !== 1 || !backup.collections || typeof backup.collections !== "object") {
+    throw new Error("This is not a valid FleetOps backup file");
+  }
+
+  if (!pool) {
+    const db = await readJsonDb();
+    backupCollections.forEach((resource) => {
+      db[resource] = (db[resource] || []).filter((record) => record.ownerId !== session.sub);
+    });
+    await writeJsonDb(db);
+  } else {
+    await Promise.all(backupCollections.map((resource) => pgQuery(
+      `delete from ${collectionConfig[resource].table} where owner_id = $1`,
+      [session.sub]
+    )));
+  }
+
+  let imported = 0;
+  for (const resource of backupCollections) {
+    const records = backup.collections[resource];
+    if (records === undefined) continue;
+    if (!Array.isArray(records)) throw new Error(`Invalid ${resource} data in backup file`);
+    for (const record of records) {
+      await createRecord(resource, record, session);
+      imported += 1;
+    }
+  }
+  return { imported };
 }
 
 function computedMetrics({ vehicles, routes, loads, maintenance, truckReports, trips, globalExpense = 0 }) {
@@ -1041,6 +1087,14 @@ const server = http.createServer(async (req, res) => {
 
     if (resource === "dashboard" && req.method === "GET") {
       return sendJson(res, 200, await getDashboard(session));
+    }
+
+    if (resource === "backup" && id === "export" && req.method === "GET") {
+      return sendJson(res, 200, await exportWorkspaceBackup(session));
+    }
+
+    if (resource === "backup" && id === "import" && req.method === "POST") {
+      return sendJson(res, 200, await replaceWorkspaceBackup(session, await readBody(req)));
     }
 
     if (!collections.has(resource)) return sendJson(res, 404, { error: "Unknown resource" });
