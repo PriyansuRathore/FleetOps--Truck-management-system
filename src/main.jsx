@@ -1267,6 +1267,7 @@ function FinancePage({ data, onNewEntry, onRefresh }) {
     { label: "Expense", value: expenseTotal, color: "#dc2626" },
     { label: "Profit", value: revenueTotal - expenseTotal, color: "#2563eb" },
   ];
+  const costBreakdown = buildFinanceBreakdown(data, expenseTotal);
   return (
     <Page title="Expense & Profit Analysis" kicker="Finance" onNewEntry={onNewEntry}>
       <NotebookSection
@@ -1288,15 +1289,7 @@ function FinancePage({ data, onNewEntry, onRefresh }) {
         <article className="finance-card"><BarChart3 size={22} /><span>Net Profit</span><strong>{data.financialSummary.netProfit}</strong></article>
       </div>
       <Panel title="Cost Breakdown" icon={BarChart3}>
-        <div className="bar-chart">
-          {data.financeBars.map((bar) => (
-            <div className="bar-row" key={bar.id}>
-              <span>{bar.label}</span>
-              <div><motion.i initial={{ width: 0 }} animate={{ width: `${bar.value}%` }} style={{ background: bar.color }} /></div>
-              <b>{bar.value}%</b>
-            </div>
-          ))}
-        </div>
+        {costBreakdown.length ? <VerticalBars rows={costBreakdown} formatter={formatMoney} /> : <p className="empty-state">Add a trip or expense to see the live cost breakdown.</p>}
       </Panel>
       <Panel title="Profit And Loss Output" icon={IndianRupee}>
         <VerticalBars rows={monthlyRows} formatter={formatMoney} />
@@ -1571,6 +1564,52 @@ function buildDashboardTotals(data) {
     activeTrips,
     totalTrucks: (data.vehicles || []).length,
   };
+}
+
+function buildFinanceBreakdown(data, totalExpense) {
+  const totals = { Fuel: 0, Toll: 0, Driver: 0, Maintenance: 0, Other: 0 };
+  const trips = data.tripSummaries || [];
+
+  function addExpense(description, amount) {
+    const value = Number(amount || 0);
+    if (!value) return;
+    const label = String(description || "").toLowerCase();
+    if (label.includes("fuel") || label.includes("diesel")) totals.Fuel += value;
+    else if (label.includes("toll")) totals.Toll += value;
+    else if (label.includes("driver") || label.includes("allowance")) totals.Driver += value;
+    else if (label.includes("maint") || label.includes("repair") || label.includes("service")) totals.Maintenance += value;
+    else totals.Other += value;
+  }
+
+  trips.forEach((trip) => {
+    const hasDetailedCosts = trip.expenses?.length || trip.fuelEntries?.length;
+    if (hasDetailedCosts) {
+      (trip.fuelEntries || []).forEach((entry) => addExpense("fuel", entry.totalAmount));
+      (trip.expenses || []).forEach((expense) => addExpense(`${expense.category || ""} ${expense.description || ""}`, expense.amount));
+      return;
+    }
+    addExpense("fuel", trip.fuelExpense);
+    addExpense("toll", trip.tollExpense);
+    addExpense("driver", trip.driverAllowance);
+    addExpense("maintenance", trip.maintenanceExpense);
+    addExpense("other", trip.otherExpense);
+  });
+
+  (data.expenseNotes || []).forEach((note) => addExpense(note.category || "other", note.amount));
+  (data.maintenanceNotes || []).forEach((note) => addExpense("maintenance", note.totalCost));
+
+  const vehiclesWithTripMaintenance = new Set(trips.filter((trip) => Number(trip.maintenanceExpense || 0) > 0).map((trip) => trip.vehicle));
+  (data.maintenance || [])
+    .filter((record) => !vehiclesWithTripMaintenance.has(record.vehicle))
+    .forEach((record) => addExpense("maintenance", parseMoney(record.cost)));
+
+  const categorisedTotal = Object.values(totals).reduce((sum, value) => sum + value, 0);
+  if (totalExpense > categorisedTotal) totals.Other += totalExpense - categorisedTotal;
+
+  const colors = { Fuel: "#60a5fa", Toll: "#f59e0b", Driver: "#a78bfa", Maintenance: "#fb7185", Other: "#94a3b8" };
+  return Object.entries(totals)
+    .filter(([, value]) => value > 0)
+    .map(([label, value]) => ({ label, value, color: colors[label] }));
 }
 
 function getLocalExpenseNotes() {
@@ -2030,13 +2069,13 @@ const entryConfigs = {
     ],
   },
   finance: {
-    collection: "expenses",
+    collection: "expenseNotes",
     title: "Add Expense",
     fields: [
-      ["type", "Expense type", "Fuel"],
-      ["amount", "Amount", "Rs.0"],
-      ["period", "Period", "July"],
-      ["trend", "Trend", "+0%"],
+      ["vehicle", "Truck number", "RJ 14 GT 2291"],
+      ["noteDate", "Expense date", "2026-08-08"],
+      ["amount", "Amount", "0"],
+      ["note", "Expense details", "Repair, parking, loading or another expense", "multiline"],
     ],
   },
 };

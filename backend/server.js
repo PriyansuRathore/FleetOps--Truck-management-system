@@ -798,22 +798,6 @@ function computedTruckReportsFromTripSummaries({ vehicles, tripSummaries, expens
   });
 }
 
-function computedTruckReports({ vehicles, routes, expenses }) {
-  const totalRevenue = routes.reduce((sum, row) => sum + Number(row.freightRevenue || 0), 0);
-  const totalExpense = routes.reduce((sum, row) => sum + Number(row.fuelCost || 0) + Number(row.tollTotal || 0) + Number(row.driverAllowance || 0) + Number(row.otherExpense || 0), 0);
-  const perVehicleRevenue = vehicles.length ? Math.max(totalRevenue / vehicles.length, 0) : 0;
-  const perVehicleExpense = vehicles.length ? Math.max(totalExpense / vehicles.length, 0) : 0;
-  return vehicles.map((vehicle, index) => ({
-    id: `report-${vehicle.id || index}`,
-    vehicle: vehicle.number || vehicle.model || `Truck ${index + 1}`,
-    trips: Math.max(1, routes.length ? Math.min(12, routes.length + index) : 1),
-    revenue: perVehicleRevenue + index * 12000 + (Number(expenses[0]?.amount || 0) / Math.max(vehicles.length, 1)),
-    expense: perVehicleExpense + index * 4500,
-    profit: perVehicleRevenue - perVehicleExpense + index * 8000,
-    utilization: Math.min(100, 70 + index * 6),
-  }));
-}
-
 function computedAlerts({ vehicles, maintenance, tyres, routes }) {
   const alerts = [];
   maintenance.forEach((item) => {
@@ -920,9 +904,7 @@ async function getDashboard(session = null, options = {}) {
   const tripSummaries = buildTripSummaries({ trips, tripLoads, tripExpenses, tripPayments, tripNotes, fuelEntries });
   const dynamicTruckReports = options.publicPreview
     ? truckReports
-    : trips.length
-      ? computedTruckReportsFromTripSummaries({ vehicles, tripSummaries, expenseNotes, maintenanceNotes, maintenance })
-      : computedTruckReports({ vehicles, routes, expenses });
+    : computedTruckReportsFromTripSummaries({ vehicles, tripSummaries, expenseNotes, maintenanceNotes, maintenance });
   const globalExpense = [
     ...expenseNotes.filter((note) => !note.vehicle).map((note) => Number(note.amount || 0)),
     ...maintenanceNotes.filter((note) => !note.vehicle).map((note) => Number(note.totalCost || 0)),
@@ -957,7 +939,7 @@ async function getDashboard(session = null, options = {}) {
     alerts,
     financialSummary: {
       projectedRevenue: `Rs.${(dynamicTruckReports.reduce((sum, row) => sum + Number(row.revenue || 0), 0) / 100000).toFixed(1)}L`,
-      fuelExpense: `Rs.${(routes.reduce((sum, row) => sum + Number(row.fuelCost || 0), 0) / 100000).toFixed(1)}L`,
+      fuelExpense: `Rs.${(tripSummaries.reduce((sum, trip) => sum + (trip.fuelEntries.length ? trip.fuelEntries.reduce((fuelTotal, entry) => fuelTotal + Number(entry.totalAmount || 0), 0) : Number(trip.fuelExpense || 0)), 0) / 100000).toFixed(1)}L`,
       netProfit: `Rs.${((dynamicTruckReports.reduce((sum, row) => sum + Number(row.profit || 0), 0) - globalExpense) / 100000).toFixed(1)}L`,
     },
   };
