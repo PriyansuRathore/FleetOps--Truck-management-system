@@ -17,8 +17,92 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-* {
-  box-sizing: border-box;
+html.theme-light {
+  color-scheme: light;
+  --bg: #eef4ff;
+  --surface: rgba(255, 255, 255, 0.96);
+  --surface-2: #f8fbff;
+  --ink: #0f172a;
+  --muted: #475569;
+  --line: rgba(148, 163, 184, 0.24);
+  --teal: #0ea5e9;
+  --teal-2: #22d3ee;
+  --blue: #2563eb;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --violet: #8b5cf6;
+  --nav: #f8fafc;
+  --shadow: 0 24px 70px rgba(15, 23, 42, 0.08);
+}
+
+html.theme-light body {
+  background:
+    radial-gradient(circle at 16% 7%, rgba(34, 211, 238, 0.15), transparent 30%),
+    radial-gradient(circle at 84% 12%, rgba(167, 139, 250, 0.12), transparent 28%),
+    linear-gradient(180deg, #eef4ff 0%, #f7faff 52%, #edf4ff 100%),
+    var(--bg);
+  color: var(--ink);
+}
+
+html.theme-light .sidebar,
+html.theme-light .topbar,
+html.theme-light .panel,
+html.theme-light .metric-card,
+html.theme-light .data-table,
+html.theme-light .note-item,
+html.theme-light .route-item,
+html.theme-light .route-motion-map,
+html.theme-light .fleet-pulse,
+html.theme-light .timeline-item,
+html.theme-light .login-card,
+html.theme-light .auth-modal,
+html.theme-light .entry-modal,
+html.theme-light .search-box,
+html.theme-light .user-chip,
+html.theme-light .backup-box,
+html.theme-light .notebook-editor,
+html.theme-light .ledger-form {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(148, 163, 184, 0.18);
+  color: var(--ink);
+}
+
+html.theme-light .sidebar nav button,
+html.theme-light .note-actions button,
+html.theme-light .profile-actions button,
+html.theme-light .route-actions button,
+html.theme-light .icon-button,
+html.theme-light .logout-button {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+html.theme-light .sidebar nav button.active,
+html.theme-light .sidebar nav button:hover {
+  background: linear-gradient(90deg, rgba(14, 165, 233, 0.12), rgba(37, 99, 235, 0.12));
+  color: var(--ink);
+}
+
+html.theme-light .topbar {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+html.theme-light .status {
+  background: rgba(251, 191, 36, 0.12);
+  color: var(--amber);
+}
+
+html.theme-light .status.live {
+  background: rgba(34, 211, 238, 0.12);
+  color: var(--teal-2);
+}
+
+html.theme-light .data-row.head {
+  background: rgba(96, 165, 250, 0.12);
+}
+
+* {  box-sizing: border-box;
 }
 
 body {

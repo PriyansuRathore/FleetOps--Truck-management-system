@@ -28,11 +28,13 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  SunMedium,
   Truck,
   Trash2,
   UserRoundCheck,
   Wrench,
   X,
+  Moon,
 } from "lucide-react";
 import "./styles.css";
 
@@ -112,12 +114,21 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [entryOpen, setEntryOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
+  const [editingPage, setEditingPage] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [theme, setTheme] = useState(() => localStorage.getItem("fleetops-theme") || "dark");
 
   useEffect(() => {
     if (!user) return;
     fetchDashboard(setDashboard, setApiStatus);
   }, [user]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("theme-light", theme === "light");
+    root.classList.toggle("theme-dark", theme === "dark");
+    localStorage.setItem("fleetops-theme", theme);
+  }, [theme]);
 
   function handleLogin(session) {
     setUser(session.user);
@@ -125,10 +136,46 @@ function App() {
     setAuthOpen(false);
   }
 
+  function authHeaders() {
+    const session = JSON.parse(localStorage.getItem("fleetops-session") || "{}");
+    return session.token ? { Authorization: `Bearer ${session.token}` } : {};
+  }
+
   function handleLogout() {
     localStorage.removeItem("fleetops-session");
     setUser(null);
     setActivePage("dashboard");
+  }
+
+  function toggleTheme() {
+    setTheme((value) => (value === "dark" ? "light" : "dark"));
+  }
+
+  function handleEditEntry(page, entry) {
+    setEditingPage(page);
+    setEditingEntry(entry);
+    setEntryOpen(true);
+  }
+
+  async function handleDeleteEntry(page, entry) {
+    const collection = entryConfigs[page]?.collection || page;
+    if (!entry?.id) return;
+    if (!window.confirm(`Delete this ${collection.replace(/([A-Z])/g, " $1").trim()} record?`)) return;
+    try {
+      const response = await fetch(`/api/${collection}/${entry.id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Could not delete record");
+      if (editingEntry?.id === entry.id) {
+        setEditingEntry(null);
+        setEntryOpen(false);
+      }
+      fetchDashboard(setDashboard, setApiStatus);
+    } catch (error) {
+      window.alert(error.message || "Unable to delete record.");
+    }
   }
 
   if (!user) {
@@ -153,6 +200,8 @@ function App() {
         <Topbar
           user={user}
           apiStatus={apiStatus}
+          theme={theme}
+          onToggleTheme={toggleTheme}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onLogout={handleLogout}
@@ -167,29 +216,29 @@ function App() {
             transition={{ duration: 0.28 }}
           >
             <PageRouter
-              page={activePage}
-              data={dashboard}
-              searchQuery={searchQuery}
-              onNewEntry={() => setEntryOpen(true)}
-              onEditEntry={(entry) => {
-                setEditingEntry(entry);
-                setEntryOpen(true);
-              }}
-              onRefresh={() => fetchDashboard(setDashboard, setApiStatus)}
+             page={activePage}
+             data={dashboard}
+             searchQuery={searchQuery}
+             onNewEntry={() => setEntryOpen(true)}
+             onEditEntry={handleEditEntry}
+             onDeleteEntry={handleDeleteEntry}
+             onRefresh={() => fetchDashboard(setDashboard, setApiStatus)}
             />
           </motion.div>
         </AnimatePresence>
         <NewEntryModal
-          page={activePage}
+          page={editingPage || activePage}
           open={entryOpen}
           editingEntry={editingEntry}
           onClose={() => {
             setEntryOpen(false);
             setEditingEntry(null);
+            setEditingPage(null);
           }}
           onSaved={() => {
             setEntryOpen(false);
             setEditingEntry(null);
+            setEditingPage(null);
             fetchDashboard(setDashboard, setApiStatus);
           }}
         />
@@ -395,7 +444,7 @@ function Sidebar({ activePage, setActivePage, open, setOpen }) {
   );
 }
 
-function Topbar({ user, apiStatus, searchQuery, setSearchQuery, onLogout, onMenu }) {
+function Topbar({ user, apiStatus, theme, onToggleTheme, searchQuery, setSearchQuery, onLogout, onMenu }) {
   return (
     <header className="topbar">
       <button className="menu-button" onClick={onMenu} aria-label="Open navigation">
@@ -411,6 +460,9 @@ function Topbar({ user, apiStatus, searchQuery, setSearchQuery, onLogout, onMenu
       </div>
       <div className="top-actions">
         <span className={apiStatus === "Live API" ? "status live" : "status"}>{apiStatus}</span>
+        <button className="icon-button" onClick={onToggleTheme} aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+          {theme === "dark" ? <SunMedium size={18} /> : <Moon size={18} />}
+        </button>
         <button className="icon-button" aria-label="Notifications">
           <Bell size={19} />
         </button>
@@ -427,17 +479,17 @@ function Topbar({ user, apiStatus, searchQuery, setSearchQuery, onLogout, onMenu
   );
 }
 
-function PageRouter({ page, data, searchQuery, onNewEntry, onEditEntry, onRefresh }) {
+function PageRouter({ page, data, searchQuery, onNewEntry, onEditEntry, onDeleteEntry, onRefresh }) {
   const pages = {
     dashboard: <Dashboard data={data} searchQuery={searchQuery} onNewEntry={onNewEntry} />,
-    routes: <RoutePage routes={data.routes} tolls={data.tolls} onNewEntry={onNewEntry} />,
-    loads: <LoadsPage loads={data.loads} onNewEntry={onNewEntry} />,
-    trips: <TripsPage data={data} searchQuery={searchQuery} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
-    drivers: <DriversPage drivers={data.drivers} onNewEntry={onNewEntry} />,
-    vehicles: <VehiclesPage data={data} onNewEntry={onNewEntry} />,
-    maintenance: <MaintenancePage data={data} onNewEntry={onNewEntry} onRefresh={onRefresh} />,
-    tolls: <TollsPage tolls={data.tolls} routes={data.routes} onNewEntry={onNewEntry} />,
-    tyres: <TyresPage tyres={data.tyres} vehicles={data.vehicles} onNewEntry={onNewEntry} />,
+    routes: <RoutePage routes={data.routes} tolls={data.tolls} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onDeleteEntry={onDeleteEntry} />,
+    loads: <LoadsPage loads={data.loads} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onDeleteEntry={onDeleteEntry} />,
+    trips: <TripsPage data={data} searchQuery={searchQuery} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onDeleteEntry={onDeleteEntry} onRefresh={onRefresh} />,
+    drivers: <DriversPage drivers={data.drivers} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onDeleteEntry={onDeleteEntry} />,
+    vehicles: <VehiclesPage data={data} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onDeleteEntry={onDeleteEntry} />,
+    maintenance: <MaintenancePage data={data} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onDeleteEntry={onDeleteEntry} onRefresh={onRefresh} />,
+    tolls: <TollsPage tolls={data.tolls} routes={data.routes} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onDeleteEntry={onDeleteEntry} />,
+    tyres: <TyresPage tyres={data.tyres} vehicles={data.vehicles} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onDeleteEntry={onDeleteEntry} />,
     finance: <FinancePage data={data} onNewEntry={onNewEntry} onRefresh={onRefresh} />,
     settings: <SettingsPage onNewEntry={onNewEntry} onRefresh={onRefresh} />,
   };
@@ -610,7 +662,7 @@ function FleetPulse({ vehicles }) {
   );
 }
 
-function RoutePage({ routes, tolls, onNewEntry }) {
+function RoutePage({ routes, tolls, onNewEntry, onEditEntry, onDeleteEntry }) {
   const [origin, setOrigin] = useState("Delhi");
   const [destination, setDestination] = useState("Mumbai");
   const [vehicleType, setVehicleType] = useState("Truck");
@@ -639,7 +691,7 @@ function RoutePage({ routes, tolls, onNewEntry }) {
       <div className="split-grid">
         <Panel title="Optimized Routes" icon={Route}>
           <RouteMotionMap routes={routes} selectedRoute={previewRoute} />
-          <RouteList routes={routes} />
+          <RouteList routes={routes} onEditRoute={(route) => onEditEntry?.("routes", route)} onDeleteRoute={(route) => onDeleteEntry?.("routes", route)} />
         </Panel>
         <Panel title="Live Route Profit Calculator" icon={MapPin}>
           <div className="form-grid route-calculator">
@@ -702,20 +754,29 @@ function RoutePage({ routes, tolls, onNewEntry }) {
   );
 }
 
-function LoadsPage({ loads, onNewEntry }) {
+function LoadsPage({ loads, onNewEntry, onEditEntry, onDeleteEntry }) {
   return (
     <Page title="Freight & Load Management" kicker="Dispatch" onNewEntry={onNewEntry}>
       <Panel title="Load Assignments" icon={PackageCheck}>
         <DataTable
           columns={["Load ID", "Cargo", "Truck", "Weight", "Margin", "State"]}
-          rows={loads.map((load) => [load.id, load.item, load.truck, load.weight, load.margin, load.state])}
+          rows={loads.map((load) => ({
+            id: load.id,
+            cells: [load.id, load.item, load.truck, load.weight, load.margin, load.state],
+          }))}
+          rowActions={(row) => (
+            <div className="table-action-group">
+              <button type="button" className="secondary-action" onClick={() => onEditEntry?.("loads", row)}><Pencil size={14} />Edit</button>
+              <button type="button" className="danger-action" onClick={() => onDeleteEntry?.("loads", row)}><Trash2 size={14} />Delete</button>
+            </div>
+          )}
         />
       </Panel>
     </Page>
   );
 }
 
-function TripsPage({ data, searchQuery = "", onNewEntry, onEditEntry, onRefresh }) {
+function TripsPage({ data, searchQuery = "", onNewEntry, onEditEntry, onDeleteEntry, onRefresh }) {
   const vehicles = data.vehicles || [];
   const searchedTruck = findTruckByQuery(data, searchQuery);
   const [selectedVehicle, setSelectedVehicle] = useState("");
@@ -783,11 +844,17 @@ function TripsPage({ data, searchQuery = "", onNewEntry, onEditEntry, onRefresh 
       <Panel title="Trips For Selected Truck" icon={ClipboardList}>
         <DataTable
           columns={["Trip", "Route", "Start", "End", "Load", "KM", "Price", "Expense", "Profit", "Status"]}
-          rows={tripRows}
+          rows={tripRows.map((cells, index) => ({ id: data.tripSummaries?.[index]?.id ?? data.trips?.[index]?.id, cells }))}
+          rowActions={(row) => (
+            <div className="table-action-group">
+              <button type="button" className="secondary-action" onClick={() => onEditEntry?.("trips", row)}><Pencil size={14} />Edit</button>
+              <button type="button" className="danger-action" onClick={() => onDeleteEntry?.("trips", row)}><Trash2 size={14} />Delete</button>
+            </div>
+          )}
         />
       </Panel>
       <TripDateRangeAnalysis trips={data.tripSummaries || []} />
-      {activeTrip && <TripDetailLedger trip={activeTrip} onEditTrip={() => onEditEntry(activeTrip)} onRefresh={onRefresh} />}
+      {activeTrip && <TripDetailLedger trip={activeTrip} onEditTrip={() => onEditEntry?.("trips", activeTrip)} onRefresh={onRefresh} />}
       <div className="split-grid">
         <Panel title="Maintenance Linked To Truck" icon={Wrench}>
           <DataTable
@@ -1066,7 +1133,7 @@ function buildMoneyTimeline(trip) {
   });
 }
 
-function DriversPage({ drivers, onNewEntry }) {
+function DriversPage({ drivers, onNewEntry, onEditEntry, onDeleteEntry }) {
   return (
     <Page title="Driver Management" kicker="People" onNewEntry={onNewEntry}>
       <div className="card-grid">
@@ -1081,6 +1148,10 @@ function DriversPage({ drivers, onNewEntry }) {
               <b>{driver.hours}</b>
               <small>Drive hours</small>
             </div>
+            <div className="profile-actions">
+              <button type="button" className="secondary-action" onClick={() => onEditEntry?.("drivers", driver)}><Pencil size={14} />Edit</button>
+              <button type="button" className="danger-action" onClick={() => onDeleteEntry?.("drivers", driver)}><Trash2 size={14} />Delete</button>
+            </div>
           </article>
         ))}
       </div>
@@ -1088,7 +1159,7 @@ function DriversPage({ drivers, onNewEntry }) {
   );
 }
 
-function VehiclesPage({ data, onNewEntry }) {
+function VehiclesPage({ data, onNewEntry, onEditEntry, onDeleteEntry }) {
   const vehicles = data.vehicles || [];
   const reports = data.truckReports || [];
   const trips = data.trips || [];
@@ -1111,14 +1182,16 @@ function VehiclesPage({ data, onNewEntry }) {
         <Panel title="Truck Registry" icon={Truck}>
           <DataTable
             columns={["Vehicle", "Model", "Driver", "Status", "Odometer", "Permit"]}
-            rows={vehicles.map((vehicle) => [
-              vehicle.number,
-              vehicle.model,
-              vehicle.driver,
-              vehicle.status,
-              vehicle.odometer,
-              vehicle.permit,
-            ])}
+            rows={vehicles.map((vehicle) => ({
+              id: vehicle.id,
+              cells: [vehicle.number, vehicle.model, vehicle.driver, vehicle.status, vehicle.odometer, vehicle.permit],
+            }))}
+            rowActions={(row) => (
+              <div className="table-action-group">
+                <button type="button" className="secondary-action" onClick={() => onEditEntry?.("vehicles", row)}><Pencil size={14} />Edit</button>
+                <button type="button" className="danger-action" onClick={() => onDeleteEntry?.("vehicles", row)}><Trash2 size={14} />Delete</button>
+              </div>
+            )}
           />
         </Panel>
         <Panel title="Report Of Every Truck" icon={ClipboardList}>
@@ -1159,7 +1232,7 @@ function VehiclesPage({ data, onNewEntry }) {
   );
 }
 
-function MaintenancePage({ data, onNewEntry, onRefresh }) {
+function MaintenancePage({ data, onNewEntry, onEditEntry, onDeleteEntry, onRefresh }) {
   const maintenance = data.maintenance || [];
   const parts = data.parts || [];
   return (
@@ -1178,7 +1251,16 @@ function MaintenancePage({ data, onNewEntry, onRefresh }) {
         <Panel title="Service History With Parts" icon={CalendarClock}>
           <DataTable
             columns={["Vehicle", "Task", "Date", "Cost", "Parts", "Mechanic", "Health"]}
-            rows={maintenance.map((item) => [item.vehicle, item.task, item.date, item.cost, item.parts, item.mechanic, item.health])}
+            rows={maintenance.map((item) => ({
+              id: item.id,
+              cells: [item.vehicle, item.task, item.date, item.cost, item.parts, item.mechanic, item.health],
+            }))}
+            rowActions={(row) => (
+              <div className="table-action-group">
+                <button type="button" className="secondary-action" onClick={() => onEditEntry?.("maintenance", row)}><Pencil size={14} />Edit</button>
+                <button type="button" className="danger-action" onClick={() => onDeleteEntry?.("maintenance", row)}><Trash2 size={14} />Delete</button>
+              </div>
+            )}
           />
         </Panel>
         <Panel title="Parts Inventory" icon={Wrench}>
@@ -1192,7 +1274,7 @@ function MaintenancePage({ data, onNewEntry, onRefresh }) {
   );
 }
 
-function TollsPage({ tolls, routes, onNewEntry }) {
+function TollsPage({ tolls, routes, onNewEntry, onEditEntry, onDeleteEntry }) {
   const routeTotals = routes.map((route) => {
     const routeTolls = tolls.filter((toll) => toll.routeId === route.id);
     return {
@@ -1206,13 +1288,22 @@ function TollsPage({ tolls, routes, onNewEntry }) {
         <Panel title="Toll Reconciliation" icon={ShieldCheck}>
           <DataTable
             columns={["Route", "Plaza", "Vehicle", "Amount", "Status"]}
-            rows={tolls.map((toll) => [
-              routes.find((route) => route.id === toll.routeId)?.from || "-",
-              toll.plaza,
-              toll.vehicle,
-              toll.amount,
-              toll.tag,
-            ])}
+            rows={tolls.map((toll) => ({
+              id: toll.id,
+              cells: [
+                routes.find((route) => route.id === toll.routeId)?.from || "-",
+                toll.plaza,
+                toll.vehicle,
+                toll.amount,
+                toll.tag,
+              ],
+            }))}
+            rowActions={(row) => (
+              <div className="table-action-group">
+                <button type="button" className="secondary-action" onClick={() => onEditEntry?.("tolls", row)}><Pencil size={14} />Edit</button>
+                <button type="button" className="danger-action" onClick={() => onDeleteEntry?.("tolls", row)}><Trash2 size={14} />Delete</button>
+              </div>
+            )}
           />
         </Panel>
         <Panel title="Route Toll Output Graph" icon={BarChart3}>
@@ -1223,7 +1314,7 @@ function TollsPage({ tolls, routes, onNewEntry }) {
   );
 }
 
-function TyresPage({ tyres, vehicles, onNewEntry }) {
+function TyresPage({ tyres, vehicles, onNewEntry, onEditEntry, onDeleteEntry }) {
   const [selectedVehicle, setSelectedVehicle] = useState("");
   const vehicleNumbers = [...new Set([...(vehicles || []).map((vehicle) => vehicle.number), ...(tyres || []).map((tyre) => tyre.vehicle)])].filter(Boolean);
   const visibleTyres = selectedVehicle ? tyres.filter((tyre) => tyre.vehicle === selectedVehicle) : tyres;
@@ -1246,7 +1337,16 @@ function TyresPage({ tyres, vehicles, onNewEntry }) {
         <Panel title="Rotation Register" icon={ClipboardList}>
           <DataTable
             columns={["Truck", "Position", "Tyre", "Tread", "Rotation"]}
-            rows={visibleTyres.map((tyre) => [tyre.vehicle || "Not assigned", tyre.position, tyre.tyre, tyre.tread, tyre.rotation])}
+            rows={visibleTyres.map((tyre) => ({
+              id: tyre.id,
+              cells: [tyre.vehicle || "Not assigned", tyre.position, tyre.tyre, tyre.tread, tyre.rotation],
+            }))}
+            rowActions={(row) => (
+              <div className="table-action-group">
+                <button type="button" className="secondary-action" onClick={() => onEditEntry?.("tyres", row)}><Pencil size={14} />Edit</button>
+                <button type="button" className="danger-action" onClick={() => onDeleteEntry?.("tyres", row)}><Trash2 size={14} />Delete</button>
+              </div>
+            )}
           />
         </Panel>
       </div>
@@ -1439,7 +1539,7 @@ function Panel({ title, icon: Icon, children }) {
   );
 }
 
-function RouteList({ routes }) {
+function RouteList({ routes, onEditRoute, onDeleteRoute }) {
   return (
     <div className="route-list">
       {routes.map((route) => (
@@ -1456,6 +1556,12 @@ function RouteList({ routes }) {
             <span>{route.status}</span>
           </section>
           <small>{route.saving}</small>
+          {(onEditRoute || onDeleteRoute) && (
+            <div className="route-actions">
+              {onEditRoute && <button type="button" className="secondary-action" onClick={() => onEditRoute(route)}><Pencil size={14} /> Edit</button>}
+              {onDeleteRoute && <button type="button" className="danger-action" onClick={() => onDeleteRoute(route)}><Trash2 size={14} /> Delete</button>}
+            </div>
+          )}
         </motion.div>
       ))}
     </div>
@@ -1494,17 +1600,25 @@ function RouteMotionMap({ routes, selectedRoute }) {
   );
 }
 
-function DataTable({ columns, rows }) {
+function DataTable({ columns, rows, rowActions }) {
+  const hasActions = Boolean(rowActions);
+  const columnCount = columns.length + (hasActions ? 1 : 0);
+
   return (
     <div className="data-table">
-      <div className="data-row head" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(120px, 1fr))` }}>
+      <div className="data-row head" style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(120px, 1fr))` }}>
         {columns.map((column) => <strong key={column}>{column}</strong>)}
+        {hasActions && <strong>Actions</strong>}
       </div>
-      {rows.length ? rows.map((row, index) => (
-        <div className="data-row" key={index} style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(120px, 1fr))` }}>
-          {row.map((cell, cellIndex) => <span key={`${index}-${cellIndex}`}>{cell}</span>)}
-        </div>
-      )) : <p className="table-empty">No records yet</p>}
+      {rows.length ? rows.map((row, index) => {
+        const cells = Array.isArray(row) ? row : row.cells || [];
+        return (
+          <div className="data-row" key={index} style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(120px, 1fr))` }}>
+            {cells.map((cell, cellIndex) => <span key={`${index}-${cellIndex}`}>{cell}</span>)}
+            {hasActions && <span className="row-actions">{rowActions(row, index)}</span>}
+          </div>
+        );
+      }) : <p className="table-empty">No records yet</p>}
     </div>
   );
 }
