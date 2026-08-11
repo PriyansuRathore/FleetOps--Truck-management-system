@@ -65,6 +65,8 @@ const fallbackDashboard = {
   loads: [],
   trips: [],
   tripSummaries: [],
+  completedTripSummaries: [],
+  runningTripSummaries: [],
   tripLoads: [],
   tripExpenses: [],
   tripPayments: [],
@@ -193,6 +195,7 @@ function App() {
           page={activePage}
           open={entryOpen}
           editingEntry={editingEntry}
+          vehicleNumbers={(dashboard.vehicles || []).map((vehicle) => vehicle.number).filter(Boolean)}
           onClose={() => {
             setEntryOpen(false);
             setEditingEntry(null);
@@ -500,9 +503,9 @@ function Dashboard({ data, searchQuery = "", onNewEntry }) {
         <Panel title="Income vs Expense" icon={BarChart3}>
           <VerticalBars
             rows={[
-              { label: "Freight", value: dashboardTotals.revenue, color: "#a3e635" },
+              { label: "Freight", value: dashboardTotals.revenue, color: "#5044e5" },
               { label: "Expense", value: dashboardTotals.expense, color: "#fb7185" },
-              { label: "Profit", value: Math.max(dashboardTotals.profit, 0), color: "#84cc16" },
+              { label: "Profit", value: Math.max(dashboardTotals.profit, 0), color: "#8b5cf6" },
               { label: "Pending", value: dashboardTotals.outstanding, color: "#fbbf24" },
             ]}
             formatter={formatMoney}
@@ -528,7 +531,7 @@ function Dashboard({ data, searchQuery = "", onNewEntry }) {
             rows={topReports.map((report) => ({
               label: report.vehicle,
               value: Math.max(report.profit, 0),
-              color: report.profit >= 0 ? "#84cc16" : "#fb7185",
+              color: report.profit >= 0 ? "#8b5cf6" : "#fb7185",
             }))}
             formatter={formatMoney}
           />
@@ -706,7 +709,7 @@ function RoutePage({ routes, tolls, onNewEntry, onEditEntry, onRefresh }) {
               { label: "Tolls", value: tollTotal, color: "#d97706" },
               { label: "Driver", value: driverAllowance, color: "#7c3aed" },
               { label: "Other", value: otherExpense, color: "#64748b" },
-              { label: "Profit", value: Math.max(profit, 0), color: "#84cc16" },
+              { label: "Profit", value: Math.max(profit, 0), color: "#8b5cf6" },
             ]}
             formatter={formatMoney}
           />
@@ -750,6 +753,8 @@ function TripsPage({ data, searchQuery = "", onNewEntry, onEditEntry, onRefresh 
     formatMoney(trip.profit),
     trip.status,
   ]);
+  const runningTripRows = tripRows.filter((_, index) => !isCompletedTrip(tripSummaries[index]));
+  const completedTripRows = tripRows.filter((_, index) => isCompletedTrip(tripSummaries[index]));
 
   useEffect(() => {
     if (!selectedVehicle && vehicles[0]?.number) setSelectedVehicle(vehicles[0].number);
@@ -784,22 +789,30 @@ function TripsPage({ data, searchQuery = "", onNewEntry, onEditEntry, onRefresh 
         <Panel title="Cost Output Graph" icon={BarChart3}>
           <VerticalBars
             rows={[
-              { label: "Price", value: report.revenue, color: "#a3e635" },
+              { label: "Price", value: report.revenue, color: "#5044e5" },
               { label: "Fuel", value: report.fuelExpense, color: "#f59e0b" },
               { label: "Toll", value: report.tollExpense, color: "#f59e0b" },
               { label: "Maintenance", value: report.maintenanceExpense, color: "#fb7185" },
-              { label: "Profit", value: Math.max(report.profit, 0), color: "#84cc16" },
+              { label: "Profit", value: Math.max(report.profit, 0), color: "#8b5cf6" },
             ]}
             formatter={formatMoney}
           />
         </Panel>
       </div>
-      <Panel title="Trips For Selected Truck" icon={ClipboardList}>
-        <DataTable
-          columns={["Trip", "Route", "Start", "End", "Load", "KM", "Price", "Expense", "Profit", "Status"]}
-          rows={tripRows}
-        />
-      </Panel>
+      <div className="split-grid">
+        <Panel title="Running Trips" icon={Navigation}>
+          <DataTable
+            columns={["Trip", "Route", "Start", "End", "Load", "KM", "Price", "Expense", "Profit", "Status"]}
+            rows={runningTripRows}
+          />
+        </Panel>
+        <Panel title="Completed Trips" icon={CheckCircle2}>
+          <DataTable
+            columns={["Trip", "Route", "Start", "End", "Load", "KM", "Price", "Expense", "Profit", "Status"]}
+            rows={completedTripRows}
+          />
+        </Panel>
+      </div>
       <TripDateRangeAnalysis trips={data.tripSummaries || []} />
       {activeTrip && <TripDetailLedger trip={activeTrip} onEditTrip={() => onEditEntry(activeTrip)} onRefresh={onRefresh} />}
       <div className="split-grid">
@@ -832,8 +845,10 @@ function TripDateRangeAnalysis({ trips }) {
     const tripEnd = trip.endDate || trip.startDate || "";
     return tripStart <= endDate && tripEnd >= startDate;
   }) : [];
-  const revenue = sumBy(selectedTrips, "totalFreight");
-  const expense = sumBy(selectedTrips, "totalExpenses");
+  const completedTrips = selectedTrips.filter(isCompletedTrip);
+  const runningTrips = selectedTrips.filter((trip) => !isCompletedTrip(trip));
+  const revenue = sumBy(completedTrips, "totalFreight");
+  const expense = sumBy(completedTrips, "totalExpenses");
   const profit = revenue - expense;
 
   return (
@@ -846,14 +861,16 @@ function TripDateRangeAnalysis({ trips }) {
         {hasRange ? (
           <>
             <div className="trip-summary">
-              <Stat label="Trips" value={selectedTrips.length} />
+              <Stat label="All Trips" value={selectedTrips.length} />
+              <Stat label="Completed" value={completedTrips.length} />
+              <Stat label="Running" value={runningTrips.length} />
               <Stat label="Revenue" value={formatMoney(revenue)} />
               <Stat label="Expense" value={formatMoney(expense)} />
               <Stat label="Profit / Loss" value={formatMoney(profit)} tone={profit >= 0 ? "good" : "bad"} />
             </div>
             <DataTable
-              columns={["Trip", "Truck", "Route", "Start", "End", "Revenue", "Expense", "Profit"]}
-              rows={selectedTrips.map((trip) => [trip.tripNo, trip.vehicle, `${trip.origin} to ${trip.destination}`, trip.startDate || "-", trip.endDate || "-", formatMoney(trip.totalFreight), formatMoney(trip.totalExpenses), formatMoney(trip.profit)])}
+              columns={["Trip", "Truck", "Route", "Start", "End", "Revenue", "Expense", "Profit", "Status"]}
+              rows={selectedTrips.map((trip) => [trip.tripNo, trip.vehicle, `${trip.origin} to ${trip.destination}`, trip.startDate || "-", trip.endDate || "-", isCompletedTrip(trip) ? formatMoney(trip.totalFreight) : "Pending", isCompletedTrip(trip) ? formatMoney(trip.totalExpenses) : "Not booked", isCompletedTrip(trip) ? formatMoney(trip.profit) : "After completion", trip.status])}
             />
           </>
         ) : <p className="empty-state">Select a valid from and to date to see every trip in that timeline.</p>}
@@ -861,9 +878,9 @@ function TripDateRangeAnalysis({ trips }) {
       <Panel title="Selected Period Calculation Chart" icon={BarChart3}>
         {hasRange ? <VerticalBars
           rows={[
-            { label: "Revenue", value: revenue, color: "#a3e635" },
+            { label: "Revenue", value: revenue, color: "#5044e5" },
             { label: "Expense", value: expense, color: "#fb7185" },
-            { label: "Profit", value: Math.max(profit, 0), color: "#84cc16" },
+            { label: "Profit", value: Math.max(profit, 0), color: "#8b5cf6" },
             { label: "Loss", value: Math.abs(Math.min(profit, 0)), color: "#dc2626" },
           ]}
           formatter={formatMoney}
@@ -1279,10 +1296,12 @@ function FinancePage({ data, onNewEntry, onRefresh }) {
     ...(data.maintenanceNotes || []).filter((note) => !note.vehicle).map((note) => Number(note.totalCost || 0)),
   ].reduce((sum, value) => sum + value, 0);
   const expenseTotal = truckExpenseTotal + generalExpenseTotal;
+  const completedTrips = getCompletedTrips(data);
+  const runningTrips = getRunningTrips(data);
   const monthlyRows = [
-    { label: "Revenue", value: revenueTotal, color: "#84cc16" },
+    { label: "Revenue", value: revenueTotal, color: "#5044e5" },
     { label: "Expense", value: expenseTotal, color: "#dc2626" },
-    { label: "Profit", value: revenueTotal - expenseTotal, color: "#a3e635" },
+    { label: "Profit", value: revenueTotal - expenseTotal, color: "#8b5cf6" },
   ];
   const costBreakdown = buildFinanceBreakdown(data, expenseTotal);
   return (
@@ -1301,14 +1320,19 @@ function FinancePage({ data, onNewEntry, onRefresh }) {
       />
       <DateRangeAnalysis data={data} />
       <div className="finance-grid">
-        <article className="finance-card"><IndianRupee size={22} /><span>Revenue</span><strong>{data.financialSummary.projectedRevenue}</strong></article>
-        <article className="finance-card"><Fuel size={22} /><span>Fuel Expense</span><strong>{data.financialSummary.fuelExpense}</strong></article>
-        <article className="finance-card"><BarChart3 size={22} /><span>Net Profit</span><strong>{data.financialSummary.netProfit}</strong></article>
+        <article className="finance-card"><IndianRupee size={22} /><span>Completed Trip Revenue</span><strong>{data.financialSummary.projectedRevenue}</strong></article>
+        <article className="finance-card"><Fuel size={22} /><span>Completed Fuel Expense</span><strong>{data.financialSummary.fuelExpense}</strong></article>
+        <article className="finance-card"><BarChart3 size={22} /><span>Completed Net Profit</span><strong>{data.financialSummary.netProfit}</strong></article>
       </div>
-      <Panel title="Cost Breakdown" icon={BarChart3}>
+      <div className="trip-summary">
+        <Stat label="Completed Trips" value={completedTrips.length} />
+        <Stat label="Running Trips" value={runningTrips.length} />
+        <Stat label="Running Trip P&L" value="Not booked" />
+      </div>
+      <Panel title="Completed Trip Cost Breakdown" icon={BarChart3}>
         {costBreakdown.length ? <VerticalBars rows={costBreakdown} formatter={formatMoney} /> : <p className="empty-state">Add a trip or expense to see the live cost breakdown.</p>}
       </Panel>
-      <Panel title="Profit And Loss Output" icon={IndianRupee}>
+      <Panel title="Completed Trip Profit And Loss" icon={IndianRupee}>
         <VerticalBars rows={monthlyRows} formatter={formatMoney} />
       </Panel>
       <Panel title="Truck Wise Profitability" icon={Truck}>
@@ -1330,18 +1354,18 @@ function FinancePage({ data, onNewEntry, onRefresh }) {
 
 function SettingsPage({ onRefresh }) {
   return (
-    <Page title="Data Settings" kicker="Backup">
+    <Page title="Settings" kicker="Workspace">
       <div className="split-grid">
-        <Panel title="What This Section Does" icon={Settings}>
+        <Panel title="About FleetOps" icon={Settings}>
           <div className="database-box">
-            <strong>Backup and restore your fleet data</strong>
-            <span>Use this page to export a JSON backup before clearing Neon storage, then import it later when you need the old records back.</span>
+            <strong>FleetOps Command</strong>
+            <span>Manage trucks, trips, tyres, maintenance, tolls, expenses, backup files and completed-trip profit reports from one workspace.</span>
           </div>
         </Panel>
-        <Panel title="Database" icon={ShieldCheck}>
+        <Panel title="Profit Rule" icon={ShieldCheck}>
           <div className="database-box">
-            <strong>Neon Postgres ready</strong>
-            <span>Add DATABASE_URL in backend/.env and run the SQL schema in backend/neon/schema.sql.</span>
+            <strong>Completed trips control profit and loss</strong>
+            <span>Running trips stay visible for tracking, but their freight and expenses are added to overall profit only after the trip status is completed.</span>
           </div>
         </Panel>
       </div>
@@ -1587,20 +1611,35 @@ function sumBy(rows, key) {
   return rows.reduce((sum, row) => sum + Number(row[key] || 0), 0);
 }
 
+function isCompletedTrip(trip) {
+  const status = String(trip?.status || "").trim().toLowerCase();
+  return status.includes("complete") || status.includes("delivered") || status.includes("closed");
+}
+
+function getCompletedTrips(data) {
+  return (data.completedTripSummaries?.length ? data.completedTripSummaries : (data.tripSummaries || []).filter(isCompletedTrip));
+}
+
+function getRunningTrips(data) {
+  return data.runningTripSummaries?.length ? data.runningTripSummaries : (data.tripSummaries || []).filter((trip) => !isCompletedTrip(trip));
+}
+
 function formatMoney(value) {
   return `Rs.${Number(value || 0).toLocaleString("en-IN")}`;
 }
 
 function buildDashboardTotals(data) {
   const tripSummaries = data.tripSummaries || [];
+  const completedTrips = getCompletedTrips(data);
+  const runningTrips = getRunningTrips(data);
   const reportRevenue = sumBy(data.truckReports || [], "revenue");
   const reportExpense = sumBy(data.truckReports || [], "expense");
   const reportProfit = sumBy(data.truckReports || [], "profit");
-  const revenue = reportRevenue || sumBy(tripSummaries, "totalFreight");
-  const expense = reportExpense || sumBy(tripSummaries, "totalExpenses");
+  const revenue = reportRevenue || sumBy(completedTrips, "totalFreight");
+  const expense = reportExpense || sumBy(completedTrips, "totalExpenses");
   const profit = reportRevenue || reportExpense ? reportProfit : revenue - expense;
   const outstanding = tripSummaries.reduce((sum, trip) => sum + Number(trip.pending || 0), 0);
-  const activeTrips = (tripSummaries.length ? tripSummaries : data.trips || []).filter((trip) => !String(trip.status || "").toLowerCase().includes("complete")).length;
+  const activeTrips = (runningTrips.length ? runningTrips : (data.trips || []).filter((trip) => !isCompletedTrip(trip))).length;
   return {
     revenue,
     expense,
@@ -1613,7 +1652,7 @@ function buildDashboardTotals(data) {
 
 function buildFinanceBreakdown(data, totalExpense) {
   const totals = { Fuel: 0, Toll: 0, Driver: 0, Maintenance: 0, Other: 0 };
-  const trips = data.tripSummaries || [];
+  const trips = getCompletedTrips(data);
 
   function addExpense(description, amount) {
     const value = Number(amount || 0);
@@ -1736,6 +1775,9 @@ function buildTripReport(data, vehicleNumber = "") {
   const vehicle = String(vehicleNumber || "");
   const summaries = (data.tripSummaries || []).filter((trip) => trip.vehicle === vehicle);
   const trips = summaries.length ? summaries : (data.trips || []).filter((trip) => trip.vehicle === vehicle);
+  const completedTrips = trips.filter(isCompletedTrip);
+  const runningTrips = trips.filter((trip) => !isCompletedTrip(trip));
+  const financialTrips = completedTrips;
   const maintenance = (data.maintenance || []).filter((item) => item.vehicle === vehicle);
   const tolls = (data.tolls || []).filter((toll) => toll.vehicle === vehicle);
   const parts = (data.parts || []).filter((part) => part.vehicle === vehicle);
@@ -1743,23 +1785,25 @@ function buildTripReport(data, vehicleNumber = "") {
   const noteExpense = expenseNotes.reduce((sum, note) => sum + Number(note.amount || 0), 0);
   const maintenanceNotes = (data.maintenanceNotes || []).filter((note) => note.vehicle === vehicle);
   const maintenanceNoteExpense = maintenanceNotes.reduce((sum, note) => sum + Number(note.totalCost || 0), 0);
-  const revenue = trips.reduce((sum, trip) => sum + Number(trip.totalFreight ?? trip.freightPrice ?? 0), 0);
-  const fuelExpense = trips.reduce((sum, trip) => sum + Number(trip.fuelExpense || 0), 0);
-  const tollExpense = trips.reduce((sum, trip) => sum + Number(trip.tollExpense || 0), 0) || tolls.reduce((sum, toll) => sum + Number(toll.amountValue || 0), 0);
-  const driverAllowance = trips.reduce((sum, trip) => sum + Number(trip.driverAllowance || 0), 0);
-  const maintenanceExpense = trips.reduce((sum, trip) => sum + Number(trip.maintenanceExpense || 0), 0) || maintenance.reduce((sum, item) => sum + parseMoney(item.cost), 0);
-  const otherExpense = trips.reduce((sum, trip) => sum + Number(trip.otherExpense || 0), 0);
+  const revenue = financialTrips.reduce((sum, trip) => sum + Number(trip.totalFreight ?? trip.freightPrice ?? 0), 0);
+  const fuelExpense = financialTrips.reduce((sum, trip) => sum + Number(trip.fuelExpense || 0), 0);
+  const tollExpense = financialTrips.reduce((sum, trip) => sum + Number(trip.tollExpense || 0), 0) || tolls.reduce((sum, toll) => sum + Number(toll.amountValue || 0), 0);
+  const driverAllowance = financialTrips.reduce((sum, trip) => sum + Number(trip.driverAllowance || 0), 0);
+  const maintenanceExpense = financialTrips.reduce((sum, trip) => sum + Number(trip.maintenanceExpense || 0), 0) || maintenance.reduce((sum, item) => sum + parseMoney(item.cost), 0);
+  const otherExpense = financialTrips.reduce((sum, trip) => sum + Number(trip.otherExpense || 0), 0);
   const hasSummaries = summaries.length > 0;
   const baseExpense = hasSummaries
-    ? trips.reduce((sum, trip) => sum + Number(trip.totalExpenses || 0), 0)
-    : trips.reduce((sum, trip) => sum + Number(trip.totalExpense || 0), 0) || fuelExpense + tollExpense + driverAllowance + maintenanceExpense + otherExpense;
+    ? financialTrips.reduce((sum, trip) => sum + Number(trip.totalExpenses || 0), 0)
+    : financialTrips.reduce((sum, trip) => sum + Number(trip.totalExpense || 0), 0) || fuelExpense + tollExpense + driverAllowance + maintenanceExpense + otherExpense;
   const totalExpense = hasSummaries ? baseExpense : baseExpense + noteExpense + maintenanceNoteExpense;
   const profit = revenue - totalExpense;
-  const km = trips.reduce((sum, trip) => sum + Number(trip.distance || 0) + (trip.distance ? 0 : parseMoney(trip.km)), 0);
+  const km = financialTrips.reduce((sum, trip) => sum + Number(trip.distance || 0) + (trip.distance ? 0 : parseMoney(trip.km)), 0);
 
   return {
     vehicle,
     trips,
+    completedTrips,
+    runningTrips,
     maintenance,
     tolls,
     parts,
@@ -1782,15 +1826,17 @@ function buildTripReport(data, vehicleNumber = "") {
 function TripSummary({ report }) {
   return (
     <div className="trip-summary">
-      <Stat label="Trips" value={report.trips.length} />
-      <Stat label="Total KM" value={report.km.toLocaleString("en-IN")} />
-      <Stat label="Price" value={formatMoney(report.revenue)} />
+      <Stat label="All Trips" value={report.trips.length} />
+      <Stat label="Completed" value={report.completedTrips?.length || 0} />
+      <Stat label="Running" value={report.runningTrips?.length || 0} />
+      <Stat label="Completed KM" value={report.km.toLocaleString("en-IN")} />
+      <Stat label="Booked Price" value={formatMoney(report.revenue)} />
       <Stat label="Fuel" value={formatMoney(report.fuelExpense)} />
       <Stat label="Tolls" value={formatMoney(report.tollExpense)} />
       <Stat label="Maintenance" value={formatMoney(report.maintenanceExpense)} />
       <Stat label="Small Notes" value={formatMoney(report.noteExpense)} />
-      <Stat label="Expense" value={formatMoney(report.totalExpense)} />
-      <Stat label="Profit" value={formatMoney(report.profit)} tone={report.profit >= 0 ? "good" : "bad"} />
+      <Stat label="Booked Expense" value={formatMoney(report.totalExpense)} />
+      <Stat label="Booked Profit" value={formatMoney(report.profit)} tone={report.profit >= 0 ? "good" : "bad"} />
     </div>
   );
 }
@@ -1800,7 +1846,9 @@ function DateRangeAnalysis({ data }) {
   const [endDate, setEndDate] = useState("");
   const hasRange = Boolean(startDate && endDate && startDate <= endDate);
   const inRange = (date) => hasRange && Boolean(date) && date >= startDate && date <= endDate;
-  const trips = (data.tripSummaries || []).filter((trip) => inRange(trip.startDate));
+  const allTrips = (data.tripSummaries || []).filter((trip) => inRange(trip.startDate));
+  const trips = allTrips.filter(isCompletedTrip);
+  const runningTrips = allTrips.filter((trip) => !isCompletedTrip(trip));
   const tripRevenue = sumBy(trips, "totalFreight");
   const tripExpense = sumBy(trips, "totalExpenses");
   const noteExpense = (data.expenseNotes || []).filter((note) => inRange(note.noteDate)).reduce((sum, note) => sum + Number(note.amount || 0), 0);
@@ -1816,14 +1864,16 @@ function DateRangeAnalysis({ data }) {
       {hasRange ? (
         <>
           <div className="trip-summary">
-            <Stat label="Trips" value={trips.length} />
+            <Stat label="All Trips" value={allTrips.length} />
+            <Stat label="Completed" value={trips.length} />
+            <Stat label="Running" value={runningTrips.length} />
             <Stat label="Revenue" value={formatMoney(tripRevenue)} />
             <Stat label="Expense" value={formatMoney(totalExpense)} />
             <Stat label="Profit / Loss" value={formatMoney(tripRevenue - totalExpense)} tone={tripRevenue - totalExpense >= 0 ? "good" : "bad"} />
           </div>
           <DataTable
-            columns={["Trip", "Truck", "Start", "Revenue", "Expense", "Profit"]}
-            rows={trips.map((trip) => [trip.tripNo, trip.vehicle, trip.startDate || "-", formatMoney(trip.totalFreight), formatMoney(trip.totalExpenses), formatMoney(trip.profit)])}
+            columns={["Trip", "Truck", "Start", "Revenue", "Expense", "Profit", "Status"]}
+            rows={allTrips.map((trip) => [trip.tripNo, trip.vehicle, trip.startDate || "-", isCompletedTrip(trip) ? formatMoney(trip.totalFreight) : "Pending", isCompletedTrip(trip) ? formatMoney(trip.totalExpenses) : "Not booked", isCompletedTrip(trip) ? formatMoney(trip.profit) : "After completion", trip.status])}
           />
         </>
       ) : <p className="empty-state">Choose a valid start and end date to see trips, expenses, profit and loss.</p>}
@@ -2076,7 +2126,7 @@ const entryConfigs = {
       ["maintenanceExpense", "Maintenance expense", "0"],
       ["otherExpense", "Other expense", "9400"],
       ["notes", "Trip notes", "Special instructions, delivery notes, or reminders", "multiline"],
-      ["status", "Status", "Completed"],
+      ["status", "Status", "Running"],
     ],
   },
   maintenance: {
@@ -2127,16 +2177,23 @@ const entryConfigs = {
   },
 };
 
-function NewEntryModal({ page, open, editingEntry, onClose, onSaved }) {
+function NewEntryModal({ page, open, editingEntry, vehicleNumbers = [], onClose, onSaved }) {
   const config = entryConfigs[page] || entryConfigs.dashboard;
   const [form, setForm] = useState({});
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setForm(Object.fromEntries(config.fields.map(([key]) => [key, editingEntry?.[key] ?? ""])));
+    const nextForm = Object.fromEntries(config.fields.map(([key]) => [key, editingEntry?.[key] ?? ""]));
+    if (!editingEntry) {
+      if (config.collection === "trips") nextForm.status = "Running";
+      config.fields.forEach(([key]) => {
+        if (["vehicle", "truck"].includes(key) && !nextForm[key] && vehicleNumbers[0]) nextForm[key] = vehicleNumbers[0];
+      });
+    }
+    setForm(nextForm);
     setError("");
-  }, [config.title, editingEntry, open]);
+  }, [config.title, editingEntry, open, vehicleNumbers[0]]);
 
   if (!open) return null;
 
@@ -2208,12 +2265,32 @@ function NewEntryModal({ page, open, editingEntry, onClose, onSaved }) {
           </button>
         </div>
         <div className="entry-grid">
-          {config.fields.map(([key, label, placeholder, inputType]) => (
-            <label key={key}>
-              {label}
-              {inputType === "multiline" ? <textarea value={form[key] || ""} placeholder={placeholder} rows={4} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} /> : <input value={form[key] || ""} placeholder={placeholder} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} />}
-            </label>
-          ))}
+          {config.fields.map(([key, label, placeholder, inputType]) => {
+            const shouldSelectTruck = ["vehicle", "truck"].includes(key) && vehicleNumbers.length;
+            const shouldSelectTripStatus = config.collection === "trips" && key === "status";
+            const truckOptions = [...new Set([form[key], ...vehicleNumbers].filter(Boolean))];
+            return (
+              <label key={key}>
+                {label}
+                {inputType === "multiline" ? (
+                  <textarea value={form[key] || ""} placeholder={placeholder} rows={4} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} />
+                ) : shouldSelectTripStatus ? (
+                  <select value={form[key] || ""} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}>
+                    <option value="">Choose status</option>
+                    <option value="Running">Running</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                ) : shouldSelectTruck ? (
+                  <select value={form[key] || ""} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}>
+                    <option value="">Choose truck number</option>
+                    {truckOptions.map((number) => <option key={number} value={number}>{number}</option>)}
+                  </select>
+                ) : (
+                  <input value={form[key] || ""} placeholder={placeholder} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} />
+                )}
+              </label>
+            );
+          })}
         </div>
         {error && <p className="form-error">{error}</p>}
         <button className="primary-action" disabled={saving}>

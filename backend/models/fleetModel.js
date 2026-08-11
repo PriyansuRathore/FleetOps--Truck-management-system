@@ -704,6 +704,11 @@ function calculateTripPayload(payload) {
   return { ...payload, totalExpense, profit: freightPrice - totalExpense };
 }
 
+function isCompletedTrip(trip) {
+  const status = String(trip.status || "").trim().toLowerCase();
+  return status.includes("complete") || status.includes("delivered") || status.includes("closed");
+}
+
 function buildTripSummaries({ trips, tripLoads, tripExpenses, tripPayments, tripNotes, fuelEntries }) {
   return trips.map((trip) => {
     const legacyIncome = Number(trip.freightPrice || 0);
@@ -748,6 +753,8 @@ function buildTripSummaries({ trips, tripLoads, tripExpenses, tripPayments, trip
     const distance = parseMoney(trip.km);
     return {
       ...trip,
+      isCompleted: isCompletedTrip(trip),
+      statusBucket: isCompletedTrip(trip) ? "completed" : "running",
       loads: displayLoads,
       expenses: displayExpenses,
       payments,
@@ -900,9 +907,11 @@ async function getDashboard(session = null, options = {}) {
     getCollection("financeBars", session, options),
   ]);
   const tripSummaries = buildTripSummaries({ trips, tripLoads, tripExpenses, tripPayments, tripNotes, fuelEntries });
+  const completedTripSummaries = tripSummaries.filter(isCompletedTrip);
+  const runningTripSummaries = tripSummaries.filter((trip) => !isCompletedTrip(trip));
   const dynamicTruckReports = options.publicPreview
     ? truckReports
-    : computedTruckReportsFromTripSummaries({ vehicles, tripSummaries, expenseNotes, maintenanceNotes, maintenance });
+    : computedTruckReportsFromTripSummaries({ vehicles, tripSummaries: completedTripSummaries, expenseNotes, maintenanceNotes, maintenance });
   const globalExpense = [
     ...expenseNotes.filter((note) => !note.vehicle).map((note) => Number(note.amount || 0)),
     ...maintenanceNotes.filter((note) => !note.vehicle).map((note) => Number(note.totalCost || 0)),
@@ -925,6 +934,8 @@ async function getDashboard(session = null, options = {}) {
     parts,
     trips,
     tripSummaries,
+    completedTripSummaries,
+    runningTripSummaries,
     expenseNotes,
     maintenanceNotes,
     tripLoads,
@@ -937,7 +948,7 @@ async function getDashboard(session = null, options = {}) {
     alerts,
     financialSummary: {
       projectedRevenue: `Rs.${(dynamicTruckReports.reduce((sum, row) => sum + Number(row.revenue || 0), 0) / 100000).toFixed(1)}L`,
-      fuelExpense: `Rs.${(tripSummaries.reduce((sum, trip) => sum + (trip.fuelEntries.length ? trip.fuelEntries.reduce((fuelTotal, entry) => fuelTotal + Number(entry.totalAmount || 0), 0) : Number(trip.fuelExpense || 0)), 0) / 100000).toFixed(1)}L`,
+      fuelExpense: `Rs.${(completedTripSummaries.reduce((sum, trip) => sum + (trip.fuelEntries.length ? trip.fuelEntries.reduce((fuelTotal, entry) => fuelTotal + Number(entry.totalAmount || 0), 0) : Number(trip.fuelExpense || 0)), 0) / 100000).toFixed(1)}L`,
       netProfit: `Rs.${((dynamicTruckReports.reduce((sum, row) => sum + Number(row.profit || 0), 0) - globalExpense) / 100000).toFixed(1)}L`,
     },
   };
