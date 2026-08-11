@@ -453,7 +453,7 @@ function PageRouter({ page, data, searchQuery, onNewEntry, onEditEntry, onRefres
     tolls: <TollsPage tolls={data.tolls} routes={data.routes} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
     tyres: <TyresPage tyres={data.tyres} vehicles={data.vehicles} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
     finance: <FinancePage data={data} onNewEntry={onNewEntry} onRefresh={onRefresh} />,
-    settings: <SettingsPage onNewEntry={onNewEntry} onRefresh={onRefresh} />,
+    settings: <SettingsPage onRefresh={onRefresh} />,
   };
   return pages[page] || pages.dashboard;
 }
@@ -1328,23 +1328,20 @@ function FinancePage({ data, onNewEntry, onRefresh }) {
   );
 }
 
-function SettingsPage({ onNewEntry, onRefresh }) {
+function SettingsPage({ onRefresh }) {
   return (
-    <Page title="System Settings" kicker="Admin" onNewEntry={onNewEntry}>
+    <Page title="Data Settings" kicker="Backup">
       <div className="split-grid">
-        <Panel title="Company Profile" icon={Settings}>
-          <div className="form-grid">
-            <label>Company name<input defaultValue="FleetOps Logistics" /></label>
-            <label>Primary hub<input defaultValue="Delhi NCR" /></label>
-            <label>Currency<input defaultValue="INR" /></label>
-            <label>Timezone<input defaultValue="Asia/Kolkata" /></label>
-            <button className="primary-action"><CheckCircle2 size={18} /> Save Settings</button>
+        <Panel title="What This Section Does" icon={Settings}>
+          <div className="database-box">
+            <strong>Backup and restore your fleet data</strong>
+            <span>Use this page to export a JSON backup before clearing Neon storage, then import it later when you need the old records back.</span>
           </div>
         </Panel>
         <Panel title="Database" icon={ShieldCheck}>
           <div className="database-box">
             <strong>Neon Postgres ready</strong>
-            <span>Add `DATABASE_URL` in `backend/.env` and run the SQL schema in `backend/neon/schema.sql`.</span>
+            <span>Add DATABASE_URL in backend/.env and run the SQL schema in backend/neon/schema.sql.</span>
           </div>
         </Panel>
       </div>
