@@ -500,9 +500,9 @@ function Dashboard({ data, searchQuery = "", onNewEntry }) {
         <Panel title="Income vs Expense" icon={BarChart3}>
           <VerticalBars
             rows={[
-              { label: "Freight", value: dashboardTotals.revenue, color: "#22d3ee" },
+              { label: "Freight", value: dashboardTotals.revenue, color: "#a3e635" },
               { label: "Expense", value: dashboardTotals.expense, color: "#fb7185" },
-              { label: "Profit", value: Math.max(dashboardTotals.profit, 0), color: "#14b8a6" },
+              { label: "Profit", value: Math.max(dashboardTotals.profit, 0), color: "#84cc16" },
               { label: "Pending", value: dashboardTotals.outstanding, color: "#fbbf24" },
             ]}
             formatter={formatMoney}
@@ -528,7 +528,7 @@ function Dashboard({ data, searchQuery = "", onNewEntry }) {
             rows={topReports.map((report) => ({
               label: report.vehicle,
               value: Math.max(report.profit, 0),
-              color: report.profit >= 0 ? "#14b8a6" : "#fb7185",
+              color: report.profit >= 0 ? "#84cc16" : "#fb7185",
             }))}
             formatter={formatMoney}
           />
@@ -702,11 +702,11 @@ function RoutePage({ routes, tolls, onNewEntry, onEditEntry, onRefresh }) {
         <Panel title="Route Cost Graph" icon={BarChart3}>
           <VerticalBars
             rows={[
-              { label: "Fuel", value: fuelCost, color: "#2563eb" },
+              { label: "Fuel", value: fuelCost, color: "#f59e0b" },
               { label: "Tolls", value: tollTotal, color: "#d97706" },
               { label: "Driver", value: driverAllowance, color: "#7c3aed" },
               { label: "Other", value: otherExpense, color: "#64748b" },
-              { label: "Profit", value: Math.max(profit, 0), color: "#0f9f8f" },
+              { label: "Profit", value: Math.max(profit, 0), color: "#84cc16" },
             ]}
             formatter={formatMoney}
           />
@@ -784,11 +784,11 @@ function TripsPage({ data, searchQuery = "", onNewEntry, onEditEntry, onRefresh 
         <Panel title="Cost Output Graph" icon={BarChart3}>
           <VerticalBars
             rows={[
-              { label: "Price", value: report.revenue, color: "#22d3ee" },
-              { label: "Fuel", value: report.fuelExpense, color: "#60a5fa" },
+              { label: "Price", value: report.revenue, color: "#a3e635" },
+              { label: "Fuel", value: report.fuelExpense, color: "#f59e0b" },
               { label: "Toll", value: report.tollExpense, color: "#f59e0b" },
-              { label: "Maintenance", value: report.maintenanceExpense, color: "#a78bfa" },
-              { label: "Profit", value: Math.max(report.profit, 0), color: "#14b8a6" },
+              { label: "Maintenance", value: report.maintenanceExpense, color: "#fb7185" },
+              { label: "Profit", value: Math.max(report.profit, 0), color: "#84cc16" },
             ]}
             formatter={formatMoney}
           />
@@ -861,9 +861,9 @@ function TripDateRangeAnalysis({ trips }) {
       <Panel title="Selected Period Calculation Chart" icon={BarChart3}>
         {hasRange ? <VerticalBars
           rows={[
-            { label: "Revenue", value: revenue, color: "#22d3ee" },
+            { label: "Revenue", value: revenue, color: "#a3e635" },
             { label: "Expense", value: expense, color: "#fb7185" },
-            { label: "Profit", value: Math.max(profit, 0), color: "#14b8a6" },
+            { label: "Profit", value: Math.max(profit, 0), color: "#84cc16" },
             { label: "Loss", value: Math.abs(Math.min(profit, 0)), color: "#dc2626" },
           ]}
           formatter={formatMoney}
@@ -1280,9 +1280,9 @@ function FinancePage({ data, onNewEntry, onRefresh }) {
   ].reduce((sum, value) => sum + value, 0);
   const expenseTotal = truckExpenseTotal + generalExpenseTotal;
   const monthlyRows = [
-    { label: "Revenue", value: revenueTotal, color: "#0f9f8f" },
+    { label: "Revenue", value: revenueTotal, color: "#84cc16" },
     { label: "Expense", value: expenseTotal, color: "#dc2626" },
-    { label: "Profit", value: revenueTotal - expenseTotal, color: "#2563eb" },
+    { label: "Profit", value: revenueTotal - expenseTotal, color: "#a3e635" },
   ];
   const costBreakdown = buildFinanceBreakdown(data, expenseTotal);
   return (
@@ -1654,7 +1654,7 @@ function buildFinanceBreakdown(data, totalExpense) {
   const categorisedTotal = Object.values(totals).reduce((sum, value) => sum + value, 0);
   if (totalExpense > categorisedTotal) totals.Other += totalExpense - categorisedTotal;
 
-  const colors = { Fuel: "#60a5fa", Toll: "#f59e0b", Driver: "#a78bfa", Maintenance: "#fb7185", Other: "#94a3b8" };
+  const colors = { Fuel: "#f59e0b", Toll: "#fbbf24", Driver: "#fb7185", Maintenance: "#e879f9", Other: "#aeb9a4" };
   return Object.entries(totals)
     .filter(([, value]) => value > 0)
     .map(([label, value]) => ({ label, value, color: colors[label] }));
