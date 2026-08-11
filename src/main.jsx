@@ -20,6 +20,7 @@ import {
   Map,
   MapPin,
   Menu,
+  Moon,
   Navigation,
   PackageCheck,
   Pencil,
@@ -28,6 +29,7 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  Sun,
   Truck,
   Trash2,
   UserRoundCheck,
@@ -113,11 +115,17 @@ function App() {
   const [entryOpen, setEntryOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [theme, setTheme] = useState(() => localStorage.getItem("fleetops-theme") || "dark");
 
   useEffect(() => {
     if (!user) return;
     fetchDashboard(setDashboard, setApiStatus);
   }, [user]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("fleetops-theme", theme);
+  }, [theme]);
 
   function handleLogin(session) {
     setUser(session.user);
@@ -157,6 +165,8 @@ function App() {
           setSearchQuery={setSearchQuery}
           onLogout={handleLogout}
           onMenu={() => setSidebarOpen(true)}
+          theme={theme}
+          onToggleTheme={() => setTheme((current) => current === "dark" ? "light" : "dark")}
         />
         <AnimatePresence mode="wait">
           <motion.div
@@ -395,7 +405,7 @@ function Sidebar({ activePage, setActivePage, open, setOpen }) {
   );
 }
 
-function Topbar({ user, apiStatus, searchQuery, setSearchQuery, onLogout, onMenu }) {
+function Topbar({ user, apiStatus, searchQuery, setSearchQuery, onLogout, onMenu, theme, onToggleTheme }) {
   return (
     <header className="topbar">
       <button className="menu-button" onClick={onMenu} aria-label="Open navigation">
@@ -411,6 +421,10 @@ function Topbar({ user, apiStatus, searchQuery, setSearchQuery, onLogout, onMenu
       </div>
       <div className="top-actions">
         <span className={apiStatus === "Live API" ? "status live" : "status"}>{apiStatus}</span>
+        <button className="theme-toggle" type="button" onClick={onToggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
+          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          <span>{theme === "dark" ? "Day" : "Night"}</span>
+        </button>
         <button className="icon-button" aria-label="Notifications">
           <Bell size={19} />
         </button>
@@ -430,14 +444,14 @@ function Topbar({ user, apiStatus, searchQuery, setSearchQuery, onLogout, onMenu
 function PageRouter({ page, data, searchQuery, onNewEntry, onEditEntry, onRefresh }) {
   const pages = {
     dashboard: <Dashboard data={data} searchQuery={searchQuery} onNewEntry={onNewEntry} />,
-    routes: <RoutePage routes={data.routes} tolls={data.tolls} onNewEntry={onNewEntry} />,
-    loads: <LoadsPage loads={data.loads} onNewEntry={onNewEntry} />,
+    routes: <RoutePage routes={data.routes} tolls={data.tolls} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
+    loads: <LoadsPage loads={data.loads} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
     trips: <TripsPage data={data} searchQuery={searchQuery} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
-    drivers: <DriversPage drivers={data.drivers} onNewEntry={onNewEntry} />,
-    vehicles: <VehiclesPage data={data} onNewEntry={onNewEntry} />,
-    maintenance: <MaintenancePage data={data} onNewEntry={onNewEntry} onRefresh={onRefresh} />,
-    tolls: <TollsPage tolls={data.tolls} routes={data.routes} onNewEntry={onNewEntry} />,
-    tyres: <TyresPage tyres={data.tyres} vehicles={data.vehicles} onNewEntry={onNewEntry} />,
+    drivers: <DriversPage drivers={data.drivers} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
+    vehicles: <VehiclesPage data={data} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
+    maintenance: <MaintenancePage data={data} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
+    tolls: <TollsPage tolls={data.tolls} routes={data.routes} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
+    tyres: <TyresPage tyres={data.tyres} vehicles={data.vehicles} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
     finance: <FinancePage data={data} onNewEntry={onNewEntry} onRefresh={onRefresh} />,
     settings: <SettingsPage onNewEntry={onNewEntry} onRefresh={onRefresh} />,
   };
@@ -610,7 +624,7 @@ function FleetPulse({ vehicles }) {
   );
 }
 
-function RoutePage({ routes, tolls, onNewEntry }) {
+function RoutePage({ routes, tolls, onNewEntry, onEditEntry, onRefresh }) {
   const [origin, setOrigin] = useState("Delhi");
   const [destination, setDestination] = useState("Mumbai");
   const [vehicleType, setVehicleType] = useState("Truck");
@@ -639,7 +653,7 @@ function RoutePage({ routes, tolls, onNewEntry }) {
       <div className="split-grid">
         <Panel title="Optimized Routes" icon={Route}>
           <RouteMotionMap routes={routes} selectedRoute={previewRoute} />
-          <RouteList routes={routes} />
+          <RouteList routes={routes} onEditEntry={onEditEntry} onRefresh={onRefresh} />
         </Panel>
         <Panel title="Live Route Profit Calculator" icon={MapPin}>
           <div className="form-grid route-calculator">
@@ -702,13 +716,13 @@ function RoutePage({ routes, tolls, onNewEntry }) {
   );
 }
 
-function LoadsPage({ loads, onNewEntry }) {
+function LoadsPage({ loads, onNewEntry, onEditEntry, onRefresh }) {
   return (
     <Page title="Freight & Load Management" kicker="Dispatch" onNewEntry={onNewEntry}>
       <Panel title="Load Assignments" icon={PackageCheck}>
         <DataTable
-          columns={["Load ID", "Cargo", "Truck", "Weight", "Margin", "State"]}
-          rows={loads.map((load) => [load.id, load.item, load.truck, load.weight, load.margin, load.state])}
+          columns={["Load ID", "Cargo", "Truck", "Weight", "Margin", "State", "Actions"]}
+          rows={loads.map((load) => [load.id, load.item, load.truck, load.weight, load.margin, load.state, <RecordActions key={load.id} resource="loads" record={load} onEdit={onEditEntry} onRefresh={onRefresh} />])}
         />
       </Panel>
     </Page>
@@ -1066,7 +1080,7 @@ function buildMoneyTimeline(trip) {
   });
 }
 
-function DriversPage({ drivers, onNewEntry }) {
+function DriversPage({ drivers, onNewEntry, onEditEntry, onRefresh }) {
   return (
     <Page title="Driver Management" kicker="People" onNewEntry={onNewEntry}>
       <div className="card-grid">
@@ -1081,6 +1095,7 @@ function DriversPage({ drivers, onNewEntry }) {
               <b>{driver.hours}</b>
               <small>Drive hours</small>
             </div>
+            <RecordActions resource="drivers" record={driver} onEdit={onEditEntry} onRefresh={onRefresh} />
           </article>
         ))}
       </div>
@@ -1088,7 +1103,7 @@ function DriversPage({ drivers, onNewEntry }) {
   );
 }
 
-function VehiclesPage({ data, onNewEntry }) {
+function VehiclesPage({ data, onNewEntry, onEditEntry, onRefresh }) {
   const vehicles = data.vehicles || [];
   const reports = data.truckReports || [];
   const trips = data.trips || [];
@@ -1110,7 +1125,7 @@ function VehiclesPage({ data, onNewEntry }) {
       <div className="split-grid">
         <Panel title="Truck Registry" icon={Truck}>
           <DataTable
-            columns={["Vehicle", "Model", "Driver", "Status", "Odometer", "Permit"]}
+            columns={["Vehicle", "Model", "Driver", "Status", "Odometer", "Permit", "Actions"]}
             rows={vehicles.map((vehicle) => [
               vehicle.number,
               vehicle.model,
@@ -1118,6 +1133,7 @@ function VehiclesPage({ data, onNewEntry }) {
               vehicle.status,
               vehicle.odometer,
               vehicle.permit,
+              <RecordActions key={vehicle.id} resource="vehicles" record={vehicle} onEdit={onEditEntry} onRefresh={onRefresh} />,
             ])}
           />
         </Panel>
@@ -1159,7 +1175,7 @@ function VehiclesPage({ data, onNewEntry }) {
   );
 }
 
-function MaintenancePage({ data, onNewEntry, onRefresh }) {
+function MaintenancePage({ data, onNewEntry, onEditEntry, onRefresh }) {
   const maintenance = data.maintenance || [];
   const parts = data.parts || [];
   return (
@@ -1177,8 +1193,8 @@ function MaintenancePage({ data, onNewEntry, onRefresh }) {
       <div className="split-grid">
         <Panel title="Service History With Parts" icon={CalendarClock}>
           <DataTable
-            columns={["Vehicle", "Task", "Date", "Cost", "Parts", "Mechanic", "Health"]}
-            rows={maintenance.map((item) => [item.vehicle, item.task, item.date, item.cost, item.parts, item.mechanic, item.health])}
+            columns={["Vehicle", "Task", "Date", "Cost", "Parts", "Mechanic", "Health", "Actions"]}
+            rows={maintenance.map((item) => [item.vehicle, item.task, item.date, item.cost, item.parts, item.mechanic, item.health, <RecordActions key={item.id} resource="maintenance" record={item} onEdit={onEditEntry} onRefresh={onRefresh} />])}
           />
         </Panel>
         <Panel title="Parts Inventory" icon={Wrench}>
@@ -1192,7 +1208,7 @@ function MaintenancePage({ data, onNewEntry, onRefresh }) {
   );
 }
 
-function TollsPage({ tolls, routes, onNewEntry }) {
+function TollsPage({ tolls, routes, onNewEntry, onEditEntry, onRefresh }) {
   const routeTotals = routes.map((route) => {
     const routeTolls = tolls.filter((toll) => toll.routeId === route.id);
     return {
@@ -1205,13 +1221,14 @@ function TollsPage({ tolls, routes, onNewEntry }) {
       <div className="split-grid">
         <Panel title="Toll Reconciliation" icon={ShieldCheck}>
           <DataTable
-            columns={["Route", "Plaza", "Vehicle", "Amount", "Status"]}
+            columns={["Route", "Plaza", "Vehicle", "Amount", "Status", "Actions"]}
             rows={tolls.map((toll) => [
               routes.find((route) => route.id === toll.routeId)?.from || "-",
               toll.plaza,
               toll.vehicle,
               toll.amount,
               toll.tag,
+              <RecordActions key={toll.id} resource="tolls" record={toll} onEdit={onEditEntry} onRefresh={onRefresh} />,
             ])}
           />
         </Panel>
@@ -1223,7 +1240,7 @@ function TollsPage({ tolls, routes, onNewEntry }) {
   );
 }
 
-function TyresPage({ tyres, vehicles, onNewEntry }) {
+function TyresPage({ tyres, vehicles, onNewEntry, onEditEntry, onRefresh }) {
   const [selectedVehicle, setSelectedVehicle] = useState("");
   const vehicleNumbers = [...new Set([...(vehicles || []).map((vehicle) => vehicle.number), ...(tyres || []).map((tyre) => tyre.vehicle)])].filter(Boolean);
   const visibleTyres = selectedVehicle ? tyres.filter((tyre) => tyre.vehicle === selectedVehicle) : tyres;
@@ -1245,8 +1262,8 @@ function TyresPage({ tyres, vehicles, onNewEntry }) {
         </Panel>
         <Panel title="Rotation Register" icon={ClipboardList}>
           <DataTable
-            columns={["Truck", "Position", "Tyre", "Tread", "Rotation"]}
-            rows={visibleTyres.map((tyre) => [tyre.vehicle || "Not assigned", tyre.position, tyre.tyre, tyre.tread, tyre.rotation])}
+            columns={["Truck", "Position", "Tyre", "Tread", "Rotation", "Actions"]}
+            rows={visibleTyres.map((tyre) => [tyre.vehicle || "Not assigned", tyre.position, tyre.tyre, tyre.tread, tyre.rotation, <RecordActions key={tyre.id} resource="tyres" record={tyre} onEdit={onEditEntry} onRefresh={onRefresh} />])}
           />
         </Panel>
       </div>
@@ -1439,7 +1456,7 @@ function Panel({ title, icon: Icon, children }) {
   );
 }
 
-function RouteList({ routes }) {
+function RouteList({ routes, onEditEntry, onRefresh }) {
   return (
     <div className="route-list">
       {routes.map((route) => (
@@ -1456,6 +1473,7 @@ function RouteList({ routes }) {
             <span>{route.status}</span>
           </section>
           <small>{route.saving}</small>
+          <RecordActions resource="routes" record={route} onEdit={onEditEntry} onRefresh={onRefresh} />
         </motion.div>
       ))}
     </div>
@@ -1490,6 +1508,36 @@ function RouteMotionMap({ routes, selectedRoute }) {
         <strong>{selectedRoute?.from || "Origin"} to {selectedRoute?.to || "Destination"}</strong>
         <span>{selectedRoute?.km || "-"} - {selectedRoute?.eta || "-"}</span>
       </div>
+    </div>
+  );
+}
+
+function RecordActions({ resource, record, onEdit, onRefresh }) {
+  const [busy, setBusy] = useState(false);
+
+  async function remove() {
+    if (!window.confirm(`Delete this ${resource} record? This cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      const session = JSON.parse(localStorage.getItem("fleetops-session") || "{}");
+      const response = await fetch(`/api/${resource}/${record.id}`, {
+        method: "DELETE",
+        headers: session.token ? { Authorization: `Bearer ${session.token}` } : {},
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Could not delete record");
+      onRefresh?.();
+    } catch (error) {
+      window.alert(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="record-actions">
+      <button type="button" className="table-action edit" disabled={busy} onClick={() => onEdit?.(record)} title="Edit record"><Pencil size={14} /></button>
+      <button type="button" className="table-action delete" disabled={busy} onClick={remove} title="Delete record"><Trash2 size={14} /></button>
     </div>
   );
 }
@@ -1862,12 +1910,14 @@ function NotebookSection({ title, icon, collection, notes, textareaLabel, totalL
     <Panel title={title} icon={icon}>
       {requireVehicle && <div className="vehicle-note-selector">
         <label>
-          Truck number
-          <input list="expense-truck-options" value={selectedVehicle} onChange={(event) => {
+          Select truck number
+          <select value={selectedVehicle} onChange={(event) => {
             setSelectedVehicle(event.target.value);
             setForm((current) => ({ ...current, vehicle: event.target.value }));
-          }} placeholder="Enter or select truck number" />
-          <datalist id="expense-truck-options">{vehicleNumbers.filter(Boolean).map((number) => <option key={number} value={number} />)}</datalist>
+          }}>
+            <option value="">Choose a truck</option>
+            {vehicleNumbers.filter(Boolean).map((number) => <option key={number} value={number}>{number}</option>)}
+          </select>
         </label>
         {!selectedVehicle && <p className="empty-state">Enter a truck number to open its expense section.</p>}
       </div>}

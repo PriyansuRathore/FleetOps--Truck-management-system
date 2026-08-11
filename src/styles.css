@@ -17,6 +17,18 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg: #eef4f8;
+  --surface: #ffffff;
+  --surface-2: #f5f9fc;
+  --ink: #10202f;
+  --muted: #587083;
+  --line: rgba(35, 70, 90, 0.18);
+  --nav: #102a43;
+  --shadow: 0 20px 55px rgba(35, 70, 90, 0.14);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -30,6 +42,42 @@ body {
     linear-gradient(180deg, #070b12 0%, #0d1424 52%, #090d16 100%),
     var(--bg);
   color: var(--ink);
+}
+
+html[data-theme="light"] body {
+  background:
+    radial-gradient(circle at 12% 4%, rgba(34, 211, 238, 0.18), transparent 28%),
+    radial-gradient(circle at 88% 10%, rgba(167, 139, 250, 0.16), transparent 26%),
+    linear-gradient(180deg, #f8fcff 0%, #eef5fa 55%, #e7f0f5 100%);
+}
+
+html[data-theme="light"] input,
+html[data-theme="light"] select,
+html[data-theme="light"] textarea,
+html[data-theme="light"] .search-box {
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--ink);
+}
+
+html[data-theme="light"] .topbar {
+  background: rgba(248, 252, 255, 0.82);
+}
+
+html[data-theme="light"] .panel,
+html[data-theme="light"] .metric-card,
+html[data-theme="light"] .profile-card,
+html[data-theme="light"] .finance-card,
+html[data-theme="light"] .entry-modal,
+html[data-theme="light"] .auth-modal,
+html[data-theme="light"] .login-card {
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--ink);
+}
+
+html[data-theme="light"] .data-row,
+html[data-theme="light"] .note-item,
+html[data-theme="light"] .database-box {
+  background: rgba(255, 255, 255, 0.62);
 }
 
 button,
@@ -492,6 +540,22 @@ label {
   color: var(--teal-2);
 }
 
+.theme-toggle {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  display: inline-flex;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.theme-toggle svg {
+  color: var(--amber);
+}
+
 .icon-button {
   background: rgba(17, 24, 39, 0.94);
   color: var(--ink);
@@ -848,6 +912,31 @@ textarea {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
+}
+
+.table-action {
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  display: inline-flex;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.table-action.edit {
+  background: rgba(34, 211, 238, 0.12);
+  color: var(--teal);
+}
+
+.table-action.delete {
+  background: rgba(251, 113, 133, 0.12);
+  color: var(--red);
+}
+
+.table-action:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .record-actions button {

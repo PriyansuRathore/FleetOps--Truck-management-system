@@ -10,7 +10,10 @@ A full truck management system for logistics businesses. It includes login/logou
 
 ## Backend
 
-- `backend/server.js` - Node API server
+- `backend/server.js` - HTTP server bootstrap
+- `backend/routes/apiRoutes.js` - API route wiring
+- `backend/controllers/apiController.js` - request validation and API responses
+- `backend/models/fleetModel.js` - persistence, authentication, backups, and business calculations
 - `backend/data/logistics-db.json` - Local database used for development
 - `backend/.env.example` - Neon/Postgres environment example
 - `backend/neon/schema.sql` - SQL schema for Neon Postgres
@@ -58,6 +61,8 @@ http://localhost:5173/
 - `GET /api/tyres`
 - `GET /api/expenses`
 - `GET /api/financeBars`
+- `GET /api/backup/export`
+- `POST /api/backup/import`
 
 Collection endpoints also support:
 
