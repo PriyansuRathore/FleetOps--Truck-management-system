@@ -481,8 +481,12 @@ label {
 }
 
 .side-brand {
+  background: transparent;
+  border: 0;
   gap: 10px;
   color: inherit;
+  flex: 1;
+  justify-content: flex-start;
   padding: 0;
   text-align: left;
 }
@@ -490,6 +494,8 @@ label {
 .side-brand-row {
   align-items: center;
   display: flex;
+  gap: 10px;
+  justify-content: space-between;
   margin-bottom: 22px;
   min-height: 52px;
 }
@@ -673,12 +679,21 @@ label {
 .finance-grid,
 .card-grid {
   display: grid;
-  gap: 16px;
+  gap: 22px;
+}
+
+.dashboard-grid,
+.module-grid,
+.split-grid,
+.finance-grid,
+.card-grid,
+.dashboard-hero,
+.metrics {
+  margin-bottom: 22px;
 }
 
 .metrics {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-bottom: 16px;
 }
 
 .dashboard-hero {
@@ -829,6 +844,7 @@ label {
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: var(--shadow);
+  min-width: 0;
 }
 
 .metric-card:hover,
@@ -1121,6 +1137,110 @@ textarea {
 .panel-title h2 {
   font-size: 1.04rem;
   margin: 0;
+}
+
+.alert-list,
+.tracker-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.alert-item {
+  align-items: center;
+  background: color-mix(in srgb, var(--surface-2) 78%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 13px;
+}
+
+.alert-item strong,
+.tracker-card strong {
+  display: block;
+}
+
+.alert-item span {
+  color: var(--muted);
+  display: block;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+.alert-item small,
+.status-pill {
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  padding: 6px 9px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.alert-item small {
+  background: rgba(80, 68, 229, 0.12);
+  color: var(--teal-2);
+}
+
+.alert-item.high small {
+  background: rgba(251, 113, 133, 0.14);
+  color: var(--red);
+}
+
+.tracker-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.tracker-card {
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+}
+
+.tracker-header {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.status-pill {
+  background: rgba(80, 68, 229, 0.12);
+  color: var(--teal-2);
+}
+
+.tracker-meta {
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  font-weight: 800;
+  gap: 8px;
+}
+
+.tracker-card p {
+  color: var(--ink);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.tracker-bar {
+  background: color-mix(in srgb, var(--surface) 78%, #000 22%);
+  border-radius: 999px;
+  height: 9px;
+  overflow: hidden;
+}
+
+.tracker-bar i {
+  background: linear-gradient(90deg, var(--teal), var(--violet));
+  border-radius: inherit;
+  display: block;
+  height: 100%;
 }
 
 .route-list {

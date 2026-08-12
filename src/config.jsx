@@ -1,0 +1,189 @@
+import {
+  AlertTriangle,
+  BadgeIndianRupee,
+  BarChart3,
+  CheckCircle2,
+  CircleGauge,
+  Gauge,
+  Map,
+  Navigation,
+  PackageCheck,
+  Route,
+  Settings,
+  Truck,
+  UserRoundCheck,
+  Wrench,
+} from "lucide-react";
+
+export const iconMap = {
+  dashboard: CircleGauge,
+  routes: Navigation,
+  loads: PackageCheck,
+  drivers: UserRoundCheck,
+  vehicles: Truck,
+  maintenance: Wrench,
+  trips: Route,
+  tolls: Map,
+  tyres: Gauge,
+  finance: BadgeIndianRupee,
+  settings: Settings,
+};
+
+export const metricIcons = {
+  "Active trucks": Truck,
+  "On-time trips": CheckCircle2,
+  "Monthly profit": BadgeIndianRupee,
+  "Fleet alerts": AlertTriangle,
+};
+
+
+export const entryConfigs = {
+  dashboard: {
+    collection: "vehicles",
+    title: "Add Truck",
+    fields: [
+      ["number", "Truck number", "RJ 14 GT 2291"],
+      ["model", "Model", "Tata Signa 5530"],
+      ["driver", "Driver", "Driver name"],
+      ["status", "Status", "Available"],
+      ["odometer", "Odometer", "0 km"],
+      ["permit", "Permit", "Valid"],
+    ],
+  },
+  vehicles: {
+    collection: "vehicles",
+    title: "Add Truck",
+    fields: [
+      ["number", "Truck number", "RJ 14 GT 2291"],
+      ["model", "Model", "Tata Signa 5530"],
+      ["driver", "Driver", "Driver name"],
+      ["status", "Status", "Available"],
+      ["odometer", "Odometer", "0 km"],
+      ["permit", "Permit", "Valid"],
+    ],
+  },
+  drivers: {
+    collection: "drivers",
+    title: "Add Driver",
+    fields: [
+      ["name", "Driver name", "Ramesh Yadav"],
+      ["score", "Safety score", "90"],
+      ["hours", "Drive hours", "0h"],
+      ["route", "Assigned route", "Delhi - Mumbai"],
+    ],
+  },
+  routes: {
+    collection: "routes",
+    title: "Add Route",
+    fields: [
+      ["from", "Origin", "Delhi"],
+      ["to", "Destination", "Mumbai"],
+      ["km", "Distance", "1,418 km"],
+      ["eta", "ETA", "26h"],
+      ["saving", "Optimization note", "Best fuel/toll route"],
+      ["status", "Status", "Planned"],
+      ["tollTotal", "Toll total", "0"],
+      ["fuelLiters", "Fuel liters", "0"],
+      ["freightRevenue", "Freight revenue", "0"],
+      ["driverAllowance", "Driver allowance", "0"],
+      ["otherExpense", "Other expense", "0"],
+    ],
+  },
+  loads: {
+    collection: "loads",
+    title: "Add Load",
+    fields: [
+      ["id", "Load ID", "LD-1001"],
+      ["item", "Cargo", "FMCG pallets"],
+      ["truck", "Truck", "RJ 14 GT 2291"],
+      ["weight", "Weight", "18 T"],
+      ["margin", "Margin", "25%"],
+      ["state", "State", "Assigned"],
+    ],
+  },
+  trips: {
+    collection: "trips",
+    title: "Add Trip",
+    fields: [
+      ["tripNo", "Trip number", "TRP-1001"],
+      ["vehicle", "Truck number", "RJ 14 GT 2291"],
+      ["driver", "Driver", "Driver name"],
+      ["origin", "Origin", "Delhi"],
+      ["destination", "Destination", "Mumbai"],
+      ["startDate", "Start date", "2026-07-31"],
+      ["endDate", "End date", "2026-08-01"],
+      ["load", "Load", "FMCG pallets"],
+      ["km", "Distance", "1418"],
+      ["freightPrice", "Freight price", "128000"],
+      ["fuelExpense", "Fuel expense", "38880"],
+      ["tollExpense", "Toll expense", "7420"],
+      ["driverAllowance", "Driver allowance", "6200"],
+      ["maintenanceExpense", "Maintenance expense", "0"],
+      ["otherExpense", "Other expense", "9400"],
+      ["notes", "Trip notes", "Special instructions, delivery notes, or reminders", "multiline"],
+      ["status", "Status", "Running"],
+    ],
+  },
+  maintenance: {
+    collection: "maintenance",
+    title: "Add Maintenance",
+    fields: [
+      ["vehicle", "Vehicle", "RJ 14 GT 2291"],
+      ["task", "Task", "Oil service"],
+      ["date", "Date", "Today"],
+      ["cost", "Cost", "Rs.0"],
+      ["health", "Health", "Scheduled"],
+      ["parts", "Parts", "Oil filter"],
+      ["mechanic", "Mechanic", "Workshop name"],
+    ],
+  },
+  tolls: {
+    collection: "tolls",
+    title: "Add Toll",
+    fields: [
+      ["routeId", "Route ID", "route-1"],
+      ["plaza", "Plaza", "Kishangarh"],
+      ["vehicle", "Vehicle", "RJ 14 GT 2291"],
+      ["amount", "Amount label", "Rs.500"],
+      ["amountValue", "Amount value", "500"],
+      ["tag", "Status", "FASTag synced"],
+    ],
+  },
+  tyres: {
+    collection: "tyres",
+    title: "Add Tyre",
+    fields: [
+      ["vehicle", "Truck number", "RJ 14 GT 2291"],
+      ["position", "Position", "Front Left"],
+      ["tyre", "Tyre ID", "TY-1001"],
+      ["tread", "Tread", "80%"],
+      ["rotation", "Rotation", "Healthy"],
+    ],
+  },
+  finance: {
+    collection: "expenseNotes",
+    title: "Add Expense",
+    fields: [
+      ["vehicle", "Truck number", "RJ 14 GT 2291"],
+      ["noteDate", "Expense date", "2026-08-08"],
+      ["amount", "Amount", "0"],
+      ["note", "Expense details", "Repair, parking, loading or another expense", "multiline"],
+    ],
+  },
+};
+
+
+export const navItems = [
+  ["dashboard", "Dashboard"],
+  ["routes", "Route Optimizer"],
+  ["loads", "Freight & Loads"],
+  ["trips", "Trip Register"],
+  ["drivers", "Drivers"],
+  ["vehicles", "Vehicles"],
+  ["maintenance", "Maintenance"],
+  ["tolls", "Tolls"],
+  ["tyres", "Tyres"],
+  ["finance", "Finance"],
+  ["settings", "Workspace"],
+];
+
