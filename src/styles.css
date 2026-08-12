@@ -482,8 +482,21 @@ label {
 
 .side-brand {
   gap: 10px;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.side-brand-row {
+  align-items: center;
+  display: flex;
   margin-bottom: 22px;
   min-height: 52px;
+}
+
+.side-brand:hover:not(:disabled) {
+  background: transparent;
+  transform: translateY(-1px);
 }
 
 .side-brand span {
