@@ -1,5 +1,8 @@
-import { handleApiRequest } from "../controllers/apiController.js";
+import express from "express";
+import { createApiRouter as createRouter } from "../controllers/apiController.js";
 
 export function createApiRouter() {
-  return handleApiRequest;
+  const router = express.Router();
+  createRouter(router);
+  return router;
 }

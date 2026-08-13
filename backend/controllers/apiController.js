@@ -10,81 +10,106 @@ import {
   pgQuery,
   pool,
   publicUser,
-  readBody,
   replaceWorkspaceBackup,
   requireAuth,
   resourceAliases,
-  sendJson,
   signToken,
   updateRecord,
   verifyPassword,
 } from "../models/fleetModel.js";
 
-export async function handleApiRequest(req, res) {
-  try {
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    const [, api, rawResource, id] = url.pathname.split("/");
-    const resource = resourceAliases[rawResource] || rawResource;
+const asyncRoute = (handler) => (req, res, next) => Promise.resolve(handler(req, res)).catch(next);
 
-    if (req.method === "OPTIONS") return sendJson(res, 204, {});
-    if (api !== "api") return sendJson(res, 404, { error: "Route not found" });
+function requireSession(req, res) {
+  const session = requireAuth(req);
+  if (!session) res.status(401).json({ error: "Unauthorized" });
+  return session;
+}
 
-    if (resource === "health" && req.method === "GET") {
-      if (pool) await pgQuery("select 1");
-      return sendJson(res, 200, { status: "ok", database: pool ? "neon-postgres" : "local-json" });
-    }
+export function createApiRouter(router) {
+  router.get("/health", asyncRoute(async (_req, res) => {
+    if (pool) await pgQuery("select 1");
+    res.json({ status: "ok", database: pool ? "neon-postgres" : "local-json" });
+  }));
 
-    if (resource === "public-dashboard" && req.method === "GET") {
-      return sendJson(res, 200, await getDashboard(null, { publicPreview: true }));
-    }
+  router.get("/public-dashboard", asyncRoute(async (_req, res) => {
+    res.json(await getDashboard(null, { publicPreview: true }));
+  }));
 
-    if (resource === "auth" && id === "login" && req.method === "POST") {
-      const { email, password } = await readBody(req);
-      const user = await findUserByEmail(email);
-      if (!(await verifyPassword(user, password))) return sendJson(res, 401, { error: "Invalid email or password" });
-      return sendJson(res, 200, { token: signToken(user), user: publicUser(user) });
-    }
+  router.post("/auth/login", asyncRoute(async (req, res) => {
+    const { email, password } = req.body || {};
+    const user = await findUserByEmail(email);
+    if (!(await verifyPassword(user, password))) return res.status(401).json({ error: "Invalid email or password" });
+    res.json({ token: signToken(user), user: publicUser(user) });
+  }));
 
-    if (resource === "auth" && id === "signup" && req.method === "POST") {
-      const { name, email, password } = await readBody(req);
-      if (!name || !email || !password) return sendJson(res, 400, { error: "Name, email, and password are required" });
-      if (password.length < 6) return sendJson(res, 400, { error: "Password must be at least 6 characters" });
-      const result = await createOwnerUser({ name, email, password });
-      if (result.error) return sendJson(res, 409, { error: result.error });
-      return sendJson(res, 201, { token: signToken(result.user), user: publicUser(result.user) });
-    }
+  router.post("/auth/signup", asyncRoute(async (req, res) => {
+    const { name, email, password } = req.body || {};
+    if (!name || !email || !password) return res.status(400).json({ error: "Name, email, and password are required" });
+    if (password.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
+    const result = await createOwnerUser({ name, email, password });
+    if (result.error) return res.status(409).json({ error: result.error });
+    res.status(201).json({ token: signToken(result.user), user: publicUser(result.user) });
+  }));
 
-    if (resource === "auth" && id === "me" && req.method === "GET") {
-      const session = requireAuth(req);
-      if (!session) return sendJson(res, 401, { error: "Unauthorized" });
-      const user = await findUserByEmail(session.email);
-      if (!user) return sendJson(res, 401, { error: "Unauthorized" });
-      return sendJson(res, 200, { user: publicUser(user) });
-    }
+  router.get("/auth/me", asyncRoute(async (req, res) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+    const user = await findUserByEmail(session.email);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+    res.json({ user: publicUser(user) });
+  }));
 
-    const session = requireAuth(req);
-    if (!session && resource !== "auth") return sendJson(res, 401, { error: "Unauthorized" });
+  router.get("/dashboard", asyncRoute(async (req, res) => {
+    const session = requireSession(req, res);
+    if (session) res.json(await getDashboard(session));
+  }));
+  router.get("/backup/export", asyncRoute(async (req, res) => {
+    const session = requireSession(req, res);
+    if (session) res.json(await exportWorkspaceBackup(session));
+  }));
+  router.post("/backup/import", asyncRoute(async (req, res) => {
+    const session = requireSession(req, res);
+    if (session) res.json(await replaceWorkspaceBackup(session, req.body || {}));
+  }));
 
-    if (resource === "dashboard" && req.method === "GET") return sendJson(res, 200, await getDashboard(session));
-    if (resource === "backup" && id === "export" && req.method === "GET") return sendJson(res, 200, await exportWorkspaceBackup(session));
-    if (resource === "backup" && id === "import" && req.method === "POST") return sendJson(res, 200, await replaceWorkspaceBackup(session, await readBody(req)));
-    if (!collections.has(resource)) return sendJson(res, 404, { error: "Unknown resource" });
-    if (req.method === "GET") return sendJson(res, 200, await getCollection(resource, session));
-    if (req.method === "POST") return sendJson(res, 201, await createRecord(resource, await readBody(req), session));
+  router.route("/:rawResource")
+    .get(asyncRoute(async (req, res) => {
+      const session = requireSession(req, res);
+      if (!session) return;
+      const resource = resourceAliases[req.params.rawResource] || req.params.rawResource;
+      if (!collections.has(resource)) return res.status(404).json({ error: "Unknown resource" });
+      res.json(await getCollection(resource, session));
+    }))
+    .post(asyncRoute(async (req, res) => {
+      const session = requireSession(req, res);
+      if (!session) return;
+      const resource = resourceAliases[req.params.rawResource] || req.params.rawResource;
+      if (!collections.has(resource)) return res.status(404).json({ error: "Unknown resource" });
+      res.status(201).json(await createRecord(resource, req.body || {}, session));
+    }));
 
-    if (req.method === "PUT" && id) {
-      const record = await updateRecord(resource, id, await readBody(req), session);
-      return record ? sendJson(res, 200, record) : sendJson(res, 404, { error: "Record not found" });
-    }
+  router.route("/:rawResource/:id")
+    .put(asyncRoute(async (req, res) => {
+      const session = requireSession(req, res);
+      if (!session) return;
+      const resource = resourceAliases[req.params.rawResource] || req.params.rawResource;
+      if (!collections.has(resource)) return res.status(404).json({ error: "Unknown resource" });
+      const record = await updateRecord(resource, req.params.id, req.body || {}, session);
+      res.status(record ? 200 : 404).json(record || { error: "Record not found" });
+    }))
+    .delete(asyncRoute(async (req, res) => {
+      const session = requireSession(req, res);
+      if (!session) return;
+      const resource = resourceAliases[req.params.rawResource] || req.params.rawResource;
+      if (!collections.has(resource)) return res.status(404).json({ error: "Unknown resource" });
+      const deleted = await deleteRecord(resource, req.params.id, session);
+      res.status(deleted ? 200 : 404).json(deleted ? { deleted: req.params.id } : { error: "Record not found" });
+    }));
 
-    if (req.method === "DELETE" && id) {
-      const deleted = await deleteRecord(resource, id, session);
-      return deleted ? sendJson(res, 200, { deleted: id }) : sendJson(res, 404, { error: "Record not found" });
-    }
-
-    return sendJson(res, 405, { error: "Method not allowed" });
-  } catch (error) {
+  router.use((req, res) => res.status(404).json({ error: "Route not found" }));
+  router.use((error, _req, res, _next) => {
     console.error("Unhandled request error:", error && (error.stack || error));
-    return sendJson(res, 500, { error: error.message });
-  }
+    res.status(500).json({ error: error.message || "Internal server error" });
+  });
 }
