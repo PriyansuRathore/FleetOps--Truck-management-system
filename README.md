@@ -321,3 +321,10 @@ Settings includes import/export:
 ## Important Business Rule
 
 Overall profit/loss uses completed trips only. Running trips remain visible for operations, but their amounts are booked only after the trip status becomes `Completed`.
+# FleetOps Truck Management System
+
+## Backend configuration
+
+Set `CORS_ORIGINS` in `backend/.env` to a comma-separated allow-list of frontend origins. The default only permits local Vite development URLs (`http://localhost:5173` and `http://127.0.0.1:5173`); it does not use a wildcard.
+
+The database schema includes foreign keys for trip children, payments, fuel entries, tolls, and tenant ownership. Run `npm run init:neon --prefix backend` after pulling schema changes.

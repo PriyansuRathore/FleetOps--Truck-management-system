@@ -419,6 +419,9 @@ function NewEntryModal({ page, open, editingEntry, vehicleNumbers = [], onClose,
           loadWeight: Number(payload.weight || payload.loadWeight || 18),
           fuelRate: Number(payload.fuelRate || 96),
         });
+        if (!estimate.available) {
+          throw new Error("No route profile is available for this origin and destination. Add a supported route before saving.");
+        }
         payload.from = payload.from || payload.origin || "Delhi";
         payload.to = payload.to || payload.destination || "Mumbai";
         payload.km = payload.km || estimate.distance;
@@ -432,6 +435,9 @@ function NewEntryModal({ page, open, editingEntry, vehicleNumbers = [], onClose,
       }
       if (config.collection === "trips" && !editingEntry) {
         const estimate = estimateRoute({ origin: payload.origin || "", destination: payload.destination || "", loadWeight: Number(payload.weight || 18), fuelRate: Number(payload.fuelRate || 96) });
+        if (!estimate.available) {
+          throw new Error("No route profile is available for this trip's origin and destination.");
+        }
         payload.tripNo = payload.tripNo || `TRP-${Date.now().toString().slice(-5)}`;
         payload.km = payload.km || estimate.distance;
       }

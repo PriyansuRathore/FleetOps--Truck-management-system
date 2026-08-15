@@ -4,14 +4,14 @@
       "id": "user-1",
       "name": "Admin Manager",
       "email": "admin@fleetops.com",
-      "password": "admin123",
+      "password": "$2b$10$N2gEpRFf4cCTzPYxad7puObIqo0YZGPsVDqBdC8ZmaB0TJQkl22rG",
       "role": "Owner"
     },
     {
       "id": "user-2",
       "name": "Dispatch Lead",
       "email": "dispatch@fleetops.com",
-      "password": "dispatch123",
+      "password": "$2b$10$Ps3LcdDc.JQfjr1ZoaLoauEv5Tp3MoCIetngnAez.A1rkkV4jj9aC",
       "role": "Dispatcher"
     }
   ],

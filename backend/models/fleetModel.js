@@ -11,7 +11,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, "..", ".env") });
 
 const DB_PATH = join(__dirname, "..", "data", "logistics-db.json");
-const JWT_SECRET = process.env.JWT_SECRET || "fleetops-local-dev-secret";
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "production" ? "" : "fleetops-local-dev-secret");
+if (!JWT_SECRET) throw new Error("JWT_SECRET must be set in production");
 const pool = process.env.DATABASE_URL
   ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
   : null;
@@ -443,7 +444,7 @@ const collectionConfig = {
 
 const collections = new Set(Object.keys(collectionConfig));
 const backupCollections = Object.entries(collectionConfig)
-  .filter(([resource, config]) => resource !== "users" && config.ownerScoped)
+  .filter(([resource, config]) => resource !== "users" && resource !== "truckReports" && config.ownerScoped)
   .map(([resource]) => resource);
 const resourceAliases = {
   "expense-notes": "expenseNotes",
@@ -459,23 +460,6 @@ async function readJsonDb() {
 
 async function writeJsonDb(db) {
   await writeFile(DB_PATH, `${JSON.stringify(db, null, 2)}\n`, "utf8");
-}
-
-function sendJson(res, status, payload) {
-  res.writeHead(status, {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  });
-  res.end(JSON.stringify(payload));
-}
-
-async function readBody(req) {
-  const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
-  if (!chunks.length) return {};
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
 function nextId(collection, prefix) {
@@ -522,12 +506,12 @@ function parseMoney(value) {
   return Number(String(value || "0").replace(/[^0-9.-]/g, "")) || 0;
 }
 
-async function pgQuery(sql, params = []) {
+async function pgQuery(sql, params = [], executor = pool) {
   if (!pool) throw new Error("DATABASE_URL is not configured");
-  return pool.query(sql, params);
+  return executor.query(sql, params);
 }
 
-async function getCollection(resource, session = null, options = {}) {
+async function getCollection(resource, session = null, options = {}, executor = pool) {
   if (!pool) {
     const db = await readJsonDb();
     const rows = resource === "users" ? db.users.map(publicUser) : db[resource];
@@ -555,13 +539,13 @@ async function getCollection(resource, session = null, options = {}) {
     }
   }
   sql += " order by id asc";
-  const result = await pgQuery(sql, params);
+  const result = await pgQuery(sql, params, executor);
   return result.rows.map((row) => toApi(resource, row));
 }
 
-async function createRecord(resource, payload, session = null) {
+async function createRecord(resource, payload, session = null, executor = pool, jsonDb = null) {
   if (!pool) {
-    const db = await readJsonDb();
+    const db = jsonDb || await readJsonDb();
     const tripPayload = resource === "trips" ? calculateTripPayload(payload) : payload;
     const record = {
       ...tripPayload,
@@ -569,7 +553,7 @@ async function createRecord(resource, payload, session = null) {
       ownerId: collectionConfig[resource]?.ownerScoped ? session?.sub : tripPayload.ownerId,
     };
     db[resource].push(record);
-    await writeJsonDb(db);
+    if (!jsonDb) await writeJsonDb(db);
     return resource === "users" ? publicUser(record) : record;
   }
 
@@ -587,7 +571,8 @@ async function createRecord(resource, payload, session = null) {
   const values = columns.map((column) => record[column]);
   const result = await pgQuery(
     `insert into ${config.table} (${columns.join(", ")}) values (${placeholders}) returning *`,
-    values
+    values,
+    executor
   );
   const row = toApi(resource, result.rows[0]);
   return resource === "users" ? publicUser(row) : row;
@@ -639,15 +624,27 @@ async function deleteRecord(resource, id, session = null) {
 }
 
 async function exportWorkspaceBackup(session) {
-  const collections = Object.fromEntries(await Promise.all(
-    backupCollections.map(async (resource) => [resource, await getCollection(resource, session)])
-  ));
-  return {
-    format: "fleetops-backup",
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    collections,
-  };
+  if (!pool) {
+    const collections = Object.fromEntries(await Promise.all(
+      backupCollections.map(async (resource) => [resource, await getCollection(resource, session)])
+    ));
+    return { format: "fleetops-backup", version: 1, exportedAt: new Date().toISOString(), collections };
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+    const collections = Object.fromEntries(await Promise.all(
+      backupCollections.map(async (resource) => [resource, await getCollection(resource, session, {}, client)])
+    ));
+    await client.query("COMMIT");
+    return { format: "fleetops-backup", version: 1, exportedAt: new Date().toISOString(), collections };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function replaceWorkspaceBackup(session, backup) {
@@ -655,30 +652,48 @@ async function replaceWorkspaceBackup(session, backup) {
     throw new Error("This is not a valid FleetOps backup file");
   }
 
+  for (const resource of backupCollections) {
+    const records = backup.collections[resource];
+    if (records !== undefined && !Array.isArray(records)) throw new Error(`Invalid ${resource} data in backup file`);
+  }
+
   if (!pool) {
     const db = await readJsonDb();
     backupCollections.forEach((resource) => {
       db[resource] = (db[resource] || []).filter((record) => record.ownerId !== session.sub);
     });
+    let imported = 0;
+    for (const resource of backupCollections) {
+      for (const record of backup.collections[resource] || []) {
+        await createRecord(resource, record, session, null, db);
+        imported += 1;
+      }
+    }
     await writeJsonDb(db);
+    return { imported };
   } else {
-    await Promise.all(backupCollections.map((resource) => pgQuery(
-      `delete from ${collectionConfig[resource].table} where owner_id = $1`,
-      [session.sub]
-    )));
-  }
-
-  let imported = 0;
-  for (const resource of backupCollections) {
-    const records = backup.collections[resource];
-    if (records === undefined) continue;
-    if (!Array.isArray(records)) throw new Error(`Invalid ${resource} data in backup file`);
-    for (const record of records) {
-      await createRecord(resource, record, session);
-      imported += 1;
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      for (const resource of [...backupCollections].reverse()) {
+        await pgQuery(`delete from ${collectionConfig[resource].table} where owner_id = $1`, [session.sub], client);
+      }
+      let imported = 0;
+      for (const resource of backupCollections) {
+        for (const record of backup.collections[resource] || []) {
+          await createRecord(resource, record, session, client);
+          imported += 1;
+        }
+      }
+      await client.query("COMMIT");
+      return { imported };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
     }
   }
-  return { imported };
 }
 
 function computedMetrics({ vehicles, routes, loads, maintenance, truckReports, trips, globalExpense = 0 }) {
@@ -740,7 +755,9 @@ function buildTripSummaries({ trips, tripLoads, tripExpenses, tripPayments, trip
     const displayExpenses = expenses;
     const payments = tripPayments.filter((payment) => payment.tripId === trip.id);
     const notes = tripNotes.filter((note) => note.tripId === trip.id);
-    const fuel = fuelEntries.filter((entry) => entry.tripId === trip.id || (entry.vehicle && entry.vehicle === trip.vehicle));
+    // A vehicle can have several trips. Only entries explicitly linked by tripId
+    // belong in a trip summary; matching by vehicle duplicated the same fuel cost.
+    const fuel = fuelEntries.filter((entry) => entry.tripId === trip.id);
     const totalFreight = loads.length ? loads.reduce((sum, load) => sum + Number(load.freightAmount || 0), 0) : legacyIncome;
     const loadReceived = loads.reduce((sum, load) => sum + Number(load.receivedAmount || 0), 0);
     const paymentReceived = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
@@ -883,7 +900,6 @@ async function getDashboard(session = null, options = {}) {
     tripPayments,
     tripNotes,
     fuelEntries,
-    truckReports,
     financeBars,
   ] = await Promise.all([
     getCollection("routes", session, options),
@@ -903,15 +919,12 @@ async function getDashboard(session = null, options = {}) {
     getCollection("tripPayments", session, options).catch(() => []),
     getCollection("tripNotes", session, options).catch(() => []),
     getCollection("fuelEntries", session, options).catch(() => []),
-    getCollection("truckReports", session, options),
     getCollection("financeBars", session, options),
   ]);
   const tripSummaries = buildTripSummaries({ trips, tripLoads, tripExpenses, tripPayments, tripNotes, fuelEntries });
   const completedTripSummaries = tripSummaries.filter(isCompletedTrip);
   const runningTripSummaries = tripSummaries.filter((trip) => !isCompletedTrip(trip));
-  const dynamicTruckReports = options.publicPreview
-    ? truckReports
-    : computedTruckReportsFromTripSummaries({ vehicles, tripSummaries: completedTripSummaries, expenseNotes, maintenanceNotes, maintenance });
+  const dynamicTruckReports = computedTruckReportsFromTripSummaries({ vehicles, tripSummaries: completedTripSummaries, expenseNotes, maintenanceNotes, maintenance });
   const globalExpense = [
     ...expenseNotes.filter((note) => !note.vehicle).map((note) => Number(note.amount || 0)),
     ...maintenanceNotes.filter((note) => !note.vehicle).map((note) => Number(note.totalCost || 0)),
@@ -952,19 +965,6 @@ async function getDashboard(session = null, options = {}) {
       netProfit: `Rs.${((dynamicTruckReports.reduce((sum, row) => sum + Number(row.profit || 0), 0) - globalExpense) / 100000).toFixed(1)}L`,
     },
   };
-}
-
-async function login(email, password) {
-  if (!pool) {
-    const db = await readJsonDb();
-    return db.users.find((user) => user.email === email && user.password === password);
-  }
-
-  const result = await pgQuery(
-    "select id, name, email, password, role from users where email = $1 and password = $2 limit 1",
-    [email, password]
-  );
-  return result.rows[0];
 }
 
 async function findUserByEmail(email) {
@@ -1013,6 +1013,21 @@ async function verifyPassword(user, password) {
   return user.password === password;
 }
 
+async function upgradeLegacyPassword(user, password) {
+  if (!user || user.password?.startsWith("$2")) return;
+  const hashedPassword = await bcrypt.hash(password, 10);
+  if (!pool) {
+    const db = await readJsonDb();
+    const storedUser = db.users.find((candidate) => candidate.id === user.id);
+    if (storedUser) {
+      storedUser.password = hashedPassword;
+      await writeJsonDb(db);
+    }
+    return;
+  }
+  await pgQuery("update users set password = $1 where id = $2", [hashedPassword, user.id]);
+}
+
 export {
   collections,
   createOwnerUser,
@@ -1022,16 +1037,14 @@ export {
   findUserByEmail,
   getCollection,
   getDashboard,
-  login,
   pgQuery,
   pool,
   publicUser,
-  readBody,
   replaceWorkspaceBackup,
   requireAuth,
   resourceAliases,
-  sendJson,
   signToken,
   updateRecord,
+  upgradeLegacyPassword,
   verifyPassword,
 };

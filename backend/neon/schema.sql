@@ -260,8 +260,58 @@ create index if not exists trip_notes_trip_id_idx on trip_notes (trip_id);
 create index if not exists fuel_entries_trip_id_idx on fuel_entries (trip_id);
 create index if not exists fuel_entries_vehicle_idx on fuel_entries (vehicle);
 
+-- These links prevent new orphaned child records. NOT VALID keeps this migration
+-- safe for existing installations; run VALIDATE CONSTRAINT after cleaning old data.
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'trip_loads_trip_id_fk') then
+    alter table trip_loads add constraint trip_loads_trip_id_fk foreign key (trip_id) references trips(id) on delete cascade not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'trip_expenses_trip_id_fk') then
+    alter table trip_expenses add constraint trip_expenses_trip_id_fk foreign key (trip_id) references trips(id) on delete cascade not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'trip_payments_trip_id_fk') then
+    alter table trip_payments add constraint trip_payments_trip_id_fk foreign key (trip_id) references trips(id) on delete cascade not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'trip_payments_load_id_fk') then
+    alter table trip_payments add constraint trip_payments_load_id_fk foreign key (load_id) references trip_loads(id) on delete set null not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'trip_notes_trip_id_fk') then
+    alter table trip_notes add constraint trip_notes_trip_id_fk foreign key (trip_id) references trips(id) on delete cascade not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'fuel_entries_trip_id_fk') then
+    alter table fuel_entries add constraint fuel_entries_trip_id_fk foreign key (trip_id) references trips(id) on delete set null not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'tolls_route_id_fk') then
+    alter table tolls add constraint tolls_route_id_fk foreign key (route_id) references routes(id) on delete set null not valid;
+  end if;
+end $$;
+
+-- Tenant-owned rows must point to a real user. Null is retained only for the
+-- bundled public demo records created before multi-user support.
+do $$
+declare
+  table_name text;
+  constraint_name text;
+begin
+  foreach table_name in array array[
+    'metrics', 'vehicles', 'drivers', 'routes', 'loads', 'trips',
+    'expense_notes', 'maintenance_notes', 'trip_loads', 'trip_expenses',
+    'trip_payments', 'trip_notes', 'fuel_entries', 'maintenance', 'tolls',
+    'tyres', 'expenses', 'parts', 'truck_reports'
+  ] loop
+    constraint_name := table_name || '_owner_id_fk';
+    if not exists (select 1 from pg_constraint where conname = constraint_name) then
+      execute format(
+        'alter table %I add constraint %I foreign key (owner_id) references users(id) on delete cascade not valid',
+        table_name,
+        constraint_name
+      );
+    end if;
+  end loop;
+end $$;
+
 insert into users (id, name, email, password, role)
-values ('user-1', 'Admin Manager', 'admin@fleetops.com', 'admin123', 'Owner')
+values ('user-1', 'Admin Manager', 'admin@fleetops.com', '$2b$10$N2gEpRFf4cCTzPYxad7puObIqo0YZGPsVDqBdC8ZmaB0TJQkl22rG', 'Owner')
 on conflict (email) do nothing;
 
 insert into metrics (id, label, value, delta) values

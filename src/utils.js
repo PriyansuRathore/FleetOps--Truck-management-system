@@ -103,6 +103,7 @@ export function normalizeRouteKey(origin, destination) {
 
 export function estimateRoute({ origin, destination, vehicleType = "Truck", loadWeight = 18, fuelRate = 96 }) {
   const routeProfiles = {
+    "jaipur-ahmedabad": { label: "Jaipur to Ahmedabad", distance: 678, tollBase: 1020, tollPerKm: 1.18, fuelEfficiency: 8.9, etaHours: 12, baseRevenue: 280000 },
     "delhi-mumbai": { label: "Delhi → Mumbai", distance: 1418, tollBase: 1850, tollPerKm: 1.24, fuelEfficiency: 8.7, etaHours: 28, baseRevenue: 560000 },
     "delhi-kolkata": { label: "Delhi → Kolkata", distance: 1580, tollBase: 2200, tollPerKm: 1.35, fuelEfficiency: 8.3, etaHours: 32, baseRevenue: 610000 },
     "mumbai-pune": { label: "Mumbai → Pune", distance: 155, tollBase: 420, tollPerKm: 1.05, fuelEfficiency: 9.5, etaHours: 3, baseRevenue: 125000 },
@@ -112,7 +113,23 @@ export function estimateRoute({ origin, destination, vehicleType = "Truck", load
     "kolkata-delhi": { label: "Kolkata → Delhi", distance: 1580, tollBase: 2150, tollPerKm: 1.32, fuelEfficiency: 8.4, etaHours: 31, baseRevenue: 602000 },
   };
 
-  const profile = routeProfiles[normalizeRouteKey(origin, destination)] || routeProfiles["delhi-mumbai"];
+  const routeKey = normalizeRouteKey(origin, destination);
+  const profile = routeProfiles[routeKey];
+  if (!profile) {
+    return {
+      available: false,
+      label: "No route profile available",
+      distance: 0,
+      eta: "—",
+      tollEstimate: 0,
+      fuelLiters: 0,
+      fuelCost: 0,
+      driverAllowance: 0,
+      otherExpense: 0,
+      revenue: 0,
+      profit: 0,
+    };
+  }
   const distance = Math.max(profile.distance + (Number(loadWeight || 18) > 22 ? 45 : 0), 100);
   const fuelEfficiency = profile.fuelEfficiency - (vehicleType.toLowerCase().includes("reefer") ? 0.5 : 0);
   const fuelLiters = distance / fuelEfficiency;
@@ -125,6 +142,7 @@ export function estimateRoute({ origin, destination, vehicleType = "Truck", load
   const profit = revenue - totalExpense;
 
   return {
+    available: true,
     label: profile.label,
     distance,
     eta: `${Math.max(3, Math.round(profile.etaHours + (loadWeight > 20 ? 2 : 0)))}h`,
@@ -213,4 +231,3 @@ export function buildTripReport(data, vehicleNumber = "") {
     km,
   };
 }
-

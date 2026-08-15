@@ -220,7 +220,7 @@ export function RoutePage({ routes, tolls, onNewEntry, onEditEntry, onRefresh })
   const [loadWeight, setLoadWeight] = useState(18);
   const [fuelRate, setFuelRate] = useState(96);
   const [freightRevenue, setFreightRevenue] = useState(routes[0]?.freightRevenue || 0);
-  const selectedRoute = routes.find((route) => route.from.toLowerCase() === origin.toLowerCase() && route.to.toLowerCase() === destination.toLowerCase()) || routes[0];
+  const selectedRoute = routes.find((route) => route.from.toLowerCase() === origin.toLowerCase() && route.to.toLowerCase() === destination.toLowerCase());
   const estimate = useMemo(() => estimateRoute({ origin, destination, vehicleType, loadWeight, fuelRate }), [origin, destination, vehicleType, loadWeight, fuelRate]);
   const routeTolls = tolls.filter((toll) => toll.routeId === selectedRoute?.id);
   const tollTotal = routeTolls.reduce((sum, toll) => sum + Number(toll.amountValue || 0), 0) || estimate.tollEstimate;
@@ -238,13 +238,13 @@ export function RoutePage({ routes, tolls, onNewEntry, onEditEntry, onRefresh })
   const previewRoute = selectedRoute || { from: origin || "Origin", to: destination || "Destination", km: estimate.distance, eta: estimate.eta };
 
   return (
-    <Page title="Route Optimizer" kicker="Planning" onNewEntry={onNewEntry}>
+    <Page title="Route Cost Estimator" kicker="Planning" onNewEntry={onNewEntry}>
       <div className="split-grid">
-        <Panel title="Optimized Routes" icon={Route}>
+        <Panel title="Saved Route Plans" icon={Route}>
           <RouteMotionMap routes={routes} selectedRoute={previewRoute} />
           <RouteList routes={routes} onEditEntry={onEditEntry} onRefresh={onRefresh} />
         </Panel>
-        <Panel title="Live Route Profit Calculator" icon={MapPin}>
+        <Panel title="Route Cost Calculator" icon={MapPin}>
           <div className="form-grid route-calculator">
             <label>
               Origin
@@ -268,8 +268,9 @@ export function RoutePage({ routes, tolls, onNewEntry, onEditEntry, onRefresh })
             </label>
             <label>Fuel rate per liter<input value={fuelRate} onChange={(event) => setFuelRate(event.target.value)} /></label>
             <label>Freight revenue<input value={freightRevenue} onChange={(event) => setFreightRevenue(event.target.value)} /></label>
+            {!estimate.available && <p className="form-hint">No saved route profile matches this origin and destination. Add a route profile before saving a plan.</p>}
             <div className="calculation-grid">
-              <Stat label="Best route" value={estimate.label} />
+              <Stat label="Route profile" value={estimate.label} />
               <Stat label="Distance" value={`${estimate.distance} km`} />
               <Stat label="ETA" value={estimate.eta} />
               <Stat label="Fuel cost" value={formatMoney(fuelCost)} />
@@ -277,7 +278,7 @@ export function RoutePage({ routes, tolls, onNewEntry, onEditEntry, onRefresh })
               <Stat label="Total expense" value={formatMoney(totalExpense)} />
               <Stat label="Profit / loss" value={formatMoney(profit)} tone={profit >= 0 ? "good" : "bad"} />
             </div>
-            <button className="primary-action" type="button" onClick={onNewEntry}><Sparkles size={18} /> Save Optimized Plan</button>
+            <button className="primary-action" type="button" onClick={onNewEntry} disabled={!estimate.available}><Sparkles size={18} /> Save Optimized Plan</button>
           </div>
         </Panel>
       </div>

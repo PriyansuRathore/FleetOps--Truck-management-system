@@ -14,6 +14,7 @@ import {
   requireAuth,
   resourceAliases,
   signToken,
+  upgradeLegacyPassword,
   updateRecord,
   verifyPassword,
 } from "../models/fleetModel.js";
@@ -40,6 +41,7 @@ export function createApiRouter(router) {
     const { email, password } = req.body || {};
     const user = await findUserByEmail(email);
     if (!(await verifyPassword(user, password))) return res.status(401).json({ error: "Invalid email or password" });
+    await upgradeLegacyPassword(user, password);
     res.json({ token: signToken(user), user: publicUser(user) });
   }));
 
