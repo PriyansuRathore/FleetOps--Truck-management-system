@@ -485,9 +485,10 @@ function NewEntryModal({ page, open, editingEntry, savedRoutes = [], vehicleNumb
         </div>
         <div className="entry-grid">
           {config.fields.map(([key, label, placeholder, inputType]) => {
-            const shouldSelectTruck = ["vehicle", "truck"].includes(key) && vehicleNumbers.length;
+            const shouldSuggestTruck = ["vehicle", "truck"].includes(key) && vehicleNumbers.length;
             const shouldSelectTripStatus = config.collection === "trips" && key === "status";
             const truckOptions = [...new Set([form[key], ...vehicleNumbers].filter(Boolean))];
+            const truckListId = `${config.collection}-${key}-truck-options`;
             return (
               <label key={key}>
                 {label}
@@ -499,11 +500,18 @@ function NewEntryModal({ page, open, editingEntry, savedRoutes = [], vehicleNumb
                     <option value="Running">Running</option>
                     <option value="Completed">Completed</option>
                   </select>
-                ) : shouldSelectTruck ? (
-                  <select value={form[key] || ""} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}>
-                    <option value="">Choose truck number</option>
-                    {truckOptions.map((number) => <option key={number} value={number}>{number}</option>)}
-                  </select>
+                ) : shouldSuggestTruck ? (
+                  <>
+                    <input
+                      value={form[key] || ""}
+                      list={truckListId}
+                      placeholder="Select existing or type new truck number"
+                      onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}
+                    />
+                    <datalist id={truckListId}>
+                      {truckOptions.map((number) => <option key={number} value={number} />)}
+                    </datalist>
+                  </>
                 ) : (
                   <input value={form[key] || ""} placeholder={placeholder} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} />
                 )}
