@@ -4,7 +4,7 @@ import { Bell, CheckCircle2, ChevronRight, LockKeyhole, LogOut, Menu, Moon, Sear
 import { entryConfigs, iconMap, navItems } from "./config.jsx";
 import { fallbackDashboard, publicPreviewFallback, withPublicPreviewData } from "./data.js";
 import { RouteMotionMap } from "./components.jsx";
-import { estimateRoute, getLocalExpenseNotes } from "./utils.js";
+import { estimateRoute, getLocalExpenseNotes, parseMoney } from "./utils.js";
 import {
   Dashboard,
   DriversPage,
@@ -110,6 +110,7 @@ function App() {
           page={activePage}
           open={entryOpen}
           editingEntry={editingEntry}
+          savedRoutes={dashboard.routes || []}
           vehicleNumbers={(dashboard.vehicles || []).map((vehicle) => vehicle.number).filter(Boolean)}
           onClose={() => {
             setEntryOpen(false);
@@ -384,14 +385,14 @@ function PageRouter({ page, data, searchQuery, onNewEntry, onEditEntry, onRefres
 }
 
 
-function NewEntryModal({ page, open, editingEntry, vehicleNumbers = [], onClose, onSaved }) {
+function NewEntryModal({ page, open, editingEntry, savedRoutes = [], vehicleNumbers = [], onClose, onSaved }) {
   const config = entryConfigs[page] || entryConfigs.dashboard;
   const [form, setForm] = useState({});
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const nextForm = Object.fromEntries(config.fields.map(([key]) => [key, editingEntry?.[key] ?? ""]));
+    const nextForm = Object.fromEntries(config.fields.map(([key, , placeholder]) => [key, editingEntry?.[key] ?? (editingEntry ? "" : placeholder ?? "")]));
     if (!editingEntry) {
       if (config.collection === "trips") nextForm.status = "Running";
       config.fields.forEach(([key]) => {
@@ -418,28 +419,33 @@ function NewEntryModal({ page, open, editingEntry, vehicleNumbers = [], onClose,
           vehicleType: payload.vehicleType || "Truck",
           loadWeight: Number(payload.weight || payload.loadWeight || 18),
           fuelRate: Number(payload.fuelRate || 96),
+          savedRoutes,
         });
-        if (!estimate.available) {
-          throw new Error("No route profile is available for this origin and destination. Add a supported route before saving.");
+        const manualDistance = parseMoney(payload.km || payload.distance);
+        if (!estimate.available && !manualDistance) {
+          throw new Error("Enter the route distance first, then this route can be saved as a profile.");
         }
         payload.from = payload.from || payload.origin || "Delhi";
         payload.to = payload.to || payload.destination || "Mumbai";
-        payload.km = payload.km || estimate.distance;
-        payload.eta = payload.eta || estimate.eta;
-        payload.tollTotal = payload.tollTotal || estimate.tollEstimate;
-        payload.fuelLiters = payload.fuelLiters || estimate.fuelLiters;
-        payload.fuelCost = payload.fuelCost || estimate.fuelCost;
-        payload.freightRevenue = payload.freightRevenue || estimate.revenue;
-        payload.driverAllowance = payload.driverAllowance || estimate.driverAllowance;
-        payload.otherExpense = payload.otherExpense || estimate.otherExpense;
+        payload.km = payload.km || estimate.distance || manualDistance;
+        payload.eta = payload.eta || estimate.eta || "8h";
+        if (estimate.available) {
+          payload.tollTotal = payload.tollTotal || estimate.tollEstimate;
+          payload.fuelLiters = payload.fuelLiters || estimate.fuelLiters;
+          payload.fuelCost = payload.fuelCost || estimate.fuelCost;
+          payload.freightRevenue = payload.freightRevenue || estimate.revenue;
+          payload.driverAllowance = payload.driverAllowance || estimate.driverAllowance;
+          payload.otherExpense = payload.otherExpense || estimate.otherExpense;
+        }
       }
       if (config.collection === "trips" && !editingEntry) {
-        const estimate = estimateRoute({ origin: payload.origin || "", destination: payload.destination || "", loadWeight: Number(payload.weight || 18), fuelRate: Number(payload.fuelRate || 96) });
-        if (!estimate.available) {
-          throw new Error("No route profile is available for this trip's origin and destination.");
+        const estimate = estimateRoute({ origin: payload.origin || "", destination: payload.destination || "", loadWeight: Number(payload.weight || 18), fuelRate: Number(payload.fuelRate || 96), savedRoutes });
+        const manualDistance = parseMoney(payload.km || payload.distance);
+        if (!estimate.available && !manualDistance) {
+          throw new Error("No route profile is available for this trip. Add a saved route or enter the trip distance.");
         }
         payload.tripNo = payload.tripNo || `TRP-${Date.now().toString().slice(-5)}`;
-        payload.km = payload.km || estimate.distance;
+        payload.km = payload.km || estimate.distance || manualDistance;
       }
       const response = await fetch(`/api/${config.collection}${editingEntry ? `/${editingEntry.id}` : ""}`, {
         method: editingEntry ? "PUT" : "POST",

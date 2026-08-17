@@ -220,8 +220,8 @@ export function RoutePage({ routes, tolls, onNewEntry, onEditEntry, onRefresh })
   const [loadWeight, setLoadWeight] = useState(18);
   const [fuelRate, setFuelRate] = useState(96);
   const [freightRevenue, setFreightRevenue] = useState(routes[0]?.freightRevenue || 0);
-  const selectedRoute = routes.find((route) => route.from.toLowerCase() === origin.toLowerCase() && route.to.toLowerCase() === destination.toLowerCase());
-  const estimate = useMemo(() => estimateRoute({ origin, destination, vehicleType, loadWeight, fuelRate }), [origin, destination, vehicleType, loadWeight, fuelRate]);
+  const selectedRoute = routes.find((route) => route.from.trim().toLowerCase() === origin.trim().toLowerCase() && route.to.trim().toLowerCase() === destination.trim().toLowerCase());
+  const estimate = useMemo(() => estimateRoute({ origin, destination, vehicleType, loadWeight, fuelRate, savedRoutes: routes }), [origin, destination, vehicleType, loadWeight, fuelRate, routes]);
   const routeTolls = tolls.filter((toll) => toll.routeId === selectedRoute?.id);
   const tollTotal = routeTolls.reduce((sum, toll) => sum + Number(toll.amountValue || 0), 0) || estimate.tollEstimate;
   const fuelCost = estimate.fuelCost;

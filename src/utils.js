@@ -96,12 +96,38 @@ export function getLocalExpenseNotes() {
 }
 
 export function normalizeRouteKey(origin, destination) {
-  const from = String(origin || "").trim().toLowerCase();
-  const to = String(destination || "").trim().toLowerCase();
+  const cleanCity = (value) => String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const from = cleanCity(origin);
+  const to = cleanCity(destination);
   return `${from}-${to}`;
 }
 
-export function estimateRoute({ origin, destination, vehicleType = "Truck", loadWeight = 18, fuelRate = 96 }) {
+function parseDurationHours(value) {
+  const text = String(value || "").toLowerCase();
+  const hours = Number(text.match(/(\d+(?:\.\d+)?)\s*h/)?.[1] || 0);
+  const minutes = Number(text.match(/(\d+(?:\.\d+)?)\s*m/)?.[1] || 0);
+  return hours + minutes / 60 || Number(text.replace(/[^0-9.]/g, "")) || 8;
+}
+
+function profileFromSavedRoute(route) {
+  const distance = parseMoney(route?.km ?? route?.distance);
+  if (!route?.from || !route?.to || !distance) return null;
+  const fuelLiters = Number(route.fuelLiters || 0);
+  return {
+    key: normalizeRouteKey(route.from, route.to),
+    label: `${route.from} to ${route.to}`,
+    distance,
+    tollBase: Number(route.tollTotal || 0),
+    tollPerKm: 0,
+    fuelEfficiency: fuelLiters ? distance / fuelLiters : 8.8,
+    etaHours: parseDurationHours(route.eta),
+    baseRevenue: Number(route.freightRevenue || 0) || Math.max(distance * 95, 90000),
+    driverAllowance: Number(route.driverAllowance || 0),
+    otherExpense: Number(route.otherExpense || 0),
+  };
+}
+
+export function estimateRoute({ origin, destination, vehicleType = "Truck", loadWeight = 18, fuelRate = 96, savedRoutes = [] }) {
   const routeProfiles = {
     "jaipur-ahmedabad": { label: "Jaipur to Ahmedabad", distance: 678, tollBase: 1020, tollPerKm: 1.18, fuelEfficiency: 8.9, etaHours: 12, baseRevenue: 280000 },
     "delhi-mumbai": { label: "Delhi → Mumbai", distance: 1418, tollBase: 1850, tollPerKm: 1.24, fuelEfficiency: 8.7, etaHours: 28, baseRevenue: 560000 },
@@ -114,7 +140,8 @@ export function estimateRoute({ origin, destination, vehicleType = "Truck", load
   };
 
   const routeKey = normalizeRouteKey(origin, destination);
-  const profile = routeProfiles[routeKey];
+  const savedProfile = savedRoutes.map(profileFromSavedRoute).find((route) => route?.key === routeKey);
+  const profile = savedProfile || routeProfiles[routeKey];
   if (!profile) {
     return {
       available: false,
@@ -135,8 +162,8 @@ export function estimateRoute({ origin, destination, vehicleType = "Truck", load
   const fuelLiters = distance / fuelEfficiency;
   const fuelCost = fuelLiters * Number(fuelRate || 96);
   const tollEstimate = Math.round(profile.tollBase + distance * profile.tollPerKm + (vehicleType.toLowerCase().includes("reefer") ? 1200 : 0));
-  const driverAllowance = 18000 + Math.max(0, Number(loadWeight || 18) - 16) * 1200;
-  const otherExpense = 8000 + (profile.distance > 1200 ? 6000 : 3000);
+  const driverAllowance = profile.driverAllowance || 18000 + Math.max(0, Number(loadWeight || 18) - 16) * 1200;
+  const otherExpense = profile.otherExpense || 8000 + (profile.distance > 1200 ? 6000 : 3000);
   const revenue = Math.max(profile.baseRevenue + (Number(loadWeight || 18) - 18) * 20000, 90000);
   const totalExpense = fuelCost + tollEstimate + driverAllowance + otherExpense;
   const profit = revenue - totalExpense;
