@@ -171,16 +171,16 @@ export function estimateRoute({ origin, destination, vehicleType = "Truck", load
   return {
     available: true,
     label: profile.label,
-    distance,
+    distance: Math.round(distance),
     eta: `${Math.max(3, Math.round(profile.etaHours + (loadWeight > 20 ? 2 : 0)))}h`,
     tollEstimate,
-    fuelLiters,
-    fuelCost,
-    driverAllowance,
-    otherExpense,
-    revenue,
-    totalExpense,
-    profit,
+    fuelLiters: Math.round(fuelLiters),
+    fuelCost: Math.round(fuelCost),
+    driverAllowance: Math.round(driverAllowance),
+    otherExpense: Math.round(otherExpense),
+    revenue: Math.round(revenue),
+    totalExpense: Math.round(totalExpense),
+    profit: Math.round(profit),
   };
 }
 

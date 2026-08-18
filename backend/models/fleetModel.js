@@ -17,6 +17,11 @@ const pool = process.env.DATABASE_URL
   ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
   : null;
 
+function toInteger(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? Math.round(number) : 0;
+}
+
 const collectionConfig = {
   users: {
     table: "users",
@@ -38,12 +43,12 @@ const collectionConfig = {
         origin: payload.origin ?? payload.from,
         destination: payload.destination ?? payload.to,
         distance: payload.distance ?? payload.km,
-        toll_total: Number(payload.toll_total ?? payload.tollTotal ?? 0),
-        fuel_liters: Number(payload.fuel_liters ?? payload.fuelLiters ?? 0),
-        fuel_cost: Number(payload.fuel_cost ?? payload.fuelCost ?? 0),
-        freight_revenue: Number(payload.freight_revenue ?? payload.freightRevenue ?? 0),
-        driver_allowance: Number(payload.driver_allowance ?? payload.driverAllowance ?? 0),
-        other_expense: Number(payload.other_expense ?? payload.otherExpense ?? 0),
+        toll_total: toInteger(payload.toll_total ?? payload.tollTotal),
+        fuel_liters: toInteger(payload.fuel_liters ?? payload.fuelLiters),
+        fuel_cost: toInteger(payload.fuel_cost ?? payload.fuelCost),
+        freight_revenue: toInteger(payload.freight_revenue ?? payload.freightRevenue),
+        driver_allowance: toInteger(payload.driver_allowance ?? payload.driverAllowance),
+        other_expense: toInteger(payload.other_expense ?? payload.otherExpense),
       };
     },
     toApi(row) {
@@ -95,12 +100,12 @@ const collectionConfig = {
     ],
     ownerScoped: true,
     fromApi(payload) {
-      const freightPrice = Number(payload.freight_price ?? payload.freightPrice ?? payload.price ?? 0);
-      const fuelExpense = Number(payload.fuel_expense ?? payload.fuelExpense ?? 0);
-      const tollExpense = Number(payload.toll_expense ?? payload.tollExpense ?? 0);
-      const driverAllowance = Number(payload.driver_allowance ?? payload.driverAllowance ?? 0);
-      const maintenanceExpense = Number(payload.maintenance_expense ?? payload.maintenanceExpense ?? 0);
-      const otherExpense = Number(payload.other_expense ?? payload.otherExpense ?? 0);
+      const freightPrice = toInteger(payload.freight_price ?? payload.freightPrice ?? payload.price);
+      const fuelExpense = toInteger(payload.fuel_expense ?? payload.fuelExpense);
+      const tollExpense = toInteger(payload.toll_expense ?? payload.tollExpense);
+      const driverAllowance = toInteger(payload.driver_allowance ?? payload.driverAllowance);
+      const maintenanceExpense = toInteger(payload.maintenance_expense ?? payload.maintenanceExpense);
+      const otherExpense = toInteger(payload.other_expense ?? payload.otherExpense);
       const totalExpense = fuelExpense + tollExpense + driverAllowance + maintenanceExpense + otherExpense;
       return {
         ...payload,

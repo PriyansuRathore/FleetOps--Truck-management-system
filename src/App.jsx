@@ -441,11 +441,8 @@ function NewEntryModal({ page, open, editingEntry, savedRoutes = [], vehicleNumb
       if (config.collection === "trips" && !editingEntry) {
         const estimate = estimateRoute({ origin: payload.origin || "", destination: payload.destination || "", loadWeight: Number(payload.weight || 18), fuelRate: Number(payload.fuelRate || 96), savedRoutes });
         const manualDistance = parseMoney(payload.km || payload.distance);
-        if (!estimate.available && !manualDistance) {
-          throw new Error("No route profile is available for this trip. Add a saved route or enter the trip distance.");
-        }
         payload.tripNo = payload.tripNo || `TRP-${Date.now().toString().slice(-5)}`;
-        payload.km = payload.km || estimate.distance || manualDistance;
+        payload.km = payload.km || (estimate.available ? estimate.distance : "") || manualDistance;
       }
       const response = await fetch(`/api/${config.collection}${editingEntry ? `/${editingEntry.id}` : ""}`, {
         method: editingEntry ? "PUT" : "POST",

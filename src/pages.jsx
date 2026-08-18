@@ -268,7 +268,7 @@ export function RoutePage({ routes, tolls, onNewEntry, onEditEntry, onRefresh })
             </label>
             <label>Fuel rate per liter<input value={fuelRate} onChange={(event) => setFuelRate(event.target.value)} /></label>
             <label>Freight revenue<input value={freightRevenue} onChange={(event) => setFreightRevenue(event.target.value)} /></label>
-            {!estimate.available && <p className="form-hint">No saved route profile matches this origin and destination. Add a route profile before saving a plan.</p>}
+            {!estimate.available && <p className="form-hint">No saved route profile matches this origin and destination yet. Save a route with distance to create one.</p>}
             <div className="calculation-grid">
               <Stat label="Route profile" value={estimate.label} />
               <Stat label="Distance" value={`${estimate.distance} km`} />
@@ -278,7 +278,7 @@ export function RoutePage({ routes, tolls, onNewEntry, onEditEntry, onRefresh })
               <Stat label="Total expense" value={formatMoney(totalExpense)} />
               <Stat label="Profit / loss" value={formatMoney(profit)} tone={profit >= 0 ? "good" : "bad"} />
             </div>
-            <button className="primary-action" type="button" onClick={onNewEntry} disabled={!estimate.available}><Sparkles size={18} /> Save Optimized Plan</button>
+            <button className="primary-action" type="button" onClick={onNewEntry}><Sparkles size={18} /> Save Route Plan</button>
           </div>
         </Panel>
       </div>
