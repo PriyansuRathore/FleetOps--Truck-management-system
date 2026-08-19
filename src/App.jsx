@@ -510,7 +510,7 @@ function NewEntryModal({ page, open, editingEntry, savedRoutes = [], vehicleNumb
                     </datalist>
                   </>
                 ) : (
-                  <input value={form[key] || ""} placeholder={placeholder} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} />
+                  <input type={inputType || "text"} value={form[key] || ""} placeholder={placeholder} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} />
                 )}
               </label>
             );
