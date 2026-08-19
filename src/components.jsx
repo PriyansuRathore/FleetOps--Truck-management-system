@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Pencil, Sparkles, Trash2, Truck } from "lucide-react";
+import { ArrowRight, MapPin, Pencil, Sparkles, Trash2, Truck } from "lucide-react";
 import { formatMoney } from "./utils.js";
 
 export function Page({ title, kicker, children, onNewEntry }) {

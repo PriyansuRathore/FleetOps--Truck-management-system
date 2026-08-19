@@ -392,12 +392,12 @@ function NewEntryModal({ page, open, editingEntry, savedRoutes = [], vehicleNumb
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const nextForm = Object.fromEntries(config.fields.map(([key, , placeholder]) => [key, editingEntry?.[key] ?? (editingEntry ? "" : placeholder ?? "")]));
+    // Field examples are placeholders, never values to be saved as records.
+    // This keeps a new trip (and every other new entry) empty until the user
+    // explicitly enters its real details.
+    const nextForm = Object.fromEntries(config.fields.map(([key]) => [key, editingEntry?.[key] ?? ""]));
     if (!editingEntry) {
       if (config.collection === "trips") nextForm.status = "Running";
-      config.fields.forEach(([key]) => {
-        if (["vehicle", "truck"].includes(key) && !nextForm[key] && vehicleNumbers[0]) nextForm[key] = vehicleNumbers[0];
-      });
     }
     setForm(nextForm);
     setError("");
