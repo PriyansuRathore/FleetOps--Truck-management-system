@@ -900,6 +900,27 @@ label {
   margin-bottom: 22px;
 }
 
+.operations-intro {
+  align-items: center;
+  background: color-mix(in srgb, var(--teal) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--teal) 30%, var(--line));
+  border-radius: 8px;
+  color: var(--muted);
+  display: flex;
+  gap: 12px;
+  margin-bottom: 22px;
+  padding: 14px 16px;
+}
+
+.operations-intro svg {
+  color: var(--teal-2);
+  flex: 0 0 auto;
+}
+
+.operations-intro p {
+  margin: 0;
+}
+
 .finance-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-bottom: 16px;

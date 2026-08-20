@@ -15,6 +15,7 @@ import {
   SettingsPage,
   TollsPage,
   TripsPage,
+  TripOperationsPage,
   TyresPage,
   VehiclesPage,
 } from "./pages.jsx";
@@ -373,6 +374,7 @@ function PageRouter({ page, data, searchQuery, onNewEntry, onEditEntry, onRefres
     routes: <RoutePage routes={data.routes} tolls={data.tolls} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
     loads: <LoadsPage loads={data.loads} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
     trips: <TripsPage data={data} searchQuery={searchQuery} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
+    tripOperations: <TripOperationsPage data={data} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
     drivers: <DriversPage drivers={data.drivers} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
     vehicles: <VehiclesPage data={data} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
     maintenance: <MaintenancePage data={data} onNewEntry={onNewEntry} onEditEntry={onEditEntry} onRefresh={onRefresh} />,
@@ -510,7 +512,7 @@ function NewEntryModal({ page, open, editingEntry, savedRoutes = [], vehicleNumb
                     </datalist>
                   </>
                 ) : (
-                  <input type={inputType || "text"} value={form[key] || ""} placeholder={placeholder} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} />
+                  <input type={inputType || "text"} value={form[key] || ""} placeholder={placeholder} autoComplete="off" onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} />
                 )}
               </label>
             );

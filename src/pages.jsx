@@ -12,6 +12,7 @@ import {
   IndianRupee,
   MapPin,
   Navigation,
+  ListChecks,
   PackageCheck,
   Pencil,
   Route,
@@ -424,9 +425,52 @@ export function TripsPage({ data, searchQuery = "", onNewEntry, onEditEntry, onR
   );
 }
 
+export function TripOperationsPage({ data, onEditEntry, onRefresh }) {
+  const trips = data.tripSummaries || [];
+  const runningTrips = trips.filter((trip) => !isCompletedTrip(trip));
+  const completedTrips = trips.filter(isCompletedTrip);
+  const rows = (items) => items.map((trip) => [
+    trip.tripNo,
+    trip.vehicle || "-",
+    `${trip.origin || "-"} to ${trip.destination || "-"}`,
+    trip.startDate || "-",
+    trip.endDate || "-",
+    `${trip.loads?.length || 0} loads`,
+    `${trip.expenses?.length || 0} expenses`,
+    `${trip.payments?.length || 0} payments`,
+    `${trip.fuelEntries?.length || 0} fuel entries`,
+    formatMoney(trip.pending),
+    <RecordActions key={trip.id} resource="trips" record={trip} onEdit={onEditEntry} onRefresh={onRefresh} />,
+  ]);
+
+  return (
+    <Page title="Trip Operations" kicker="Running & Completed">
+      <section className="operations-intro">
+        <ListChecks size={22} />
+        <p>Every trip is connected to its loads, expenses, payments, fuel entries and notes in Trip Register. Use the action buttons to update or remove a trip.</p>
+      </section>
+      <div className="trip-register-sections">
+        <Panel title={`Running Trips (${runningTrips.length})`} icon={Navigation}>
+          <DataTable
+            columns={["Trip", "Truck", "Route", "Start", "End", "Loads", "Expenses", "Payments", "Fuel", "Pending", "Actions"]}
+            rows={rows(runningTrips)}
+          />
+        </Panel>
+        <Panel title={`Completed Trips (${completedTrips.length})`} icon={CheckCircle2}>
+          <DataTable
+            columns={["Trip", "Truck", "Route", "Start", "End", "Loads", "Expenses", "Payments", "Fuel", "Pending", "Actions"]}
+            rows={rows(completedTrips)}
+          />
+        </Panel>
+      </div>
+    </Page>
+  );
+}
+
 function TripDateRangeAnalysis({ trips }) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [calendarKey, setCalendarKey] = useState(0);
   const hasRange = Boolean(startDate && endDate && startDate <= endDate);
   const selectedTrips = hasRange ? trips.filter((trip) => {
     const tripStart = trip.startDate || trip.endDate || "";
@@ -441,14 +485,15 @@ function TripDateRangeAnalysis({ trips }) {
   const resetDateRange = () => {
     setStartDate("");
     setEndDate("");
+    setCalendarKey((current) => current + 1);
   };
 
   return (
     <div className="split-grid">
       <Panel title="Trip Calendar Report" icon={CalendarClock}>
-        <div className="date-range-form">
-          <label>From date<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
-          <label>To date<input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
+        <div className="date-range-form" key={calendarKey}>
+          <label>From date<input type="date" value={startDate} autoComplete="off" onChange={(event) => setStartDate(event.target.value)} /></label>
+          <label>To date<input type="date" value={endDate} autoComplete="off" onChange={(event) => setEndDate(event.target.value)} /></label>
           <button className="secondary-action date-reset" type="button" onClick={resetDateRange} disabled={!startDate && !endDate}>Reset dates</button>
         </div>
         {hasRange ? (
