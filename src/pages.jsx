@@ -328,7 +328,7 @@ export function TripsPage({ data, searchQuery = "", onNewEntry, onEditEntry, onR
   const report = buildTripReport(data, activeVehicle);
   const tripSummaries = (data.tripSummaries || []).filter((trip) => trip.vehicle === activeVehicle);
   const activeTrip = tripSummaries.find((trip) => trip.id === selectedTripId) || tripSummaries[0];
-  const tripRows = tripSummaries.map((trip) => [
+  const tripRows = (trips) => trips.map((trip) => [
     trip.tripNo,
     `${trip.origin} to ${trip.destination}`,
     trip.startDate || "-",
@@ -338,10 +338,11 @@ export function TripsPage({ data, searchQuery = "", onNewEntry, onEditEntry, onR
     formatMoney(trip.totalFreight),
     formatMoney(trip.totalExpenses),
     formatMoney(trip.profit),
+    trip.registrationNotes || "-",
     trip.status,
   ]);
-  const runningTripRows = tripRows.filter((_, index) => !isCompletedTrip(tripSummaries[index]));
-  const completedTripRows = tripRows.filter((_, index) => isCompletedTrip(tripSummaries[index]));
+  const runningTrips = tripSummaries.filter((trip) => !isCompletedTrip(trip));
+  const completedTrips = tripSummaries.filter(isCompletedTrip);
 
   useEffect(() => {
     if (!selectedVehicle && vehicles[0]?.number) setSelectedVehicle(vehicles[0].number);
@@ -386,17 +387,17 @@ export function TripsPage({ data, searchQuery = "", onNewEntry, onEditEntry, onR
           />
         </Panel>
       </div>
-      <div className="split-grid">
+      <div className="trip-register-sections">
         <Panel title="Running Trips" icon={Navigation}>
           <DataTable
-            columns={["Trip", "Route", "Start", "End", "Load", "KM", "Price", "Expense", "Profit", "Status"]}
-            rows={runningTripRows}
+            columns={["Trip", "Route", "Start", "End", "Load", "KM", "Price", "Expense", "Profit", "Notes", "Status"]}
+            rows={tripRows(runningTrips)}
           />
         </Panel>
         <Panel title="Completed Trips" icon={CheckCircle2}>
           <DataTable
-            columns={["Trip", "Route", "Start", "End", "Load", "KM", "Price", "Expense", "Profit", "Status"]}
-            rows={completedTripRows}
+            columns={["Trip", "Route", "Start", "End", "Load", "KM", "Price", "Expense", "Profit", "Notes", "Status"]}
+            rows={tripRows(completedTrips)}
           />
         </Panel>
       </div>
@@ -437,6 +438,10 @@ function TripDateRangeAnalysis({ trips }) {
   const revenue = sumBy(completedTrips, "totalFreight");
   const expense = sumBy(completedTrips, "totalExpenses");
   const profit = revenue - expense;
+  const resetDateRange = () => {
+    setStartDate("");
+    setEndDate("");
+  };
 
   return (
     <div className="split-grid">
@@ -444,6 +449,7 @@ function TripDateRangeAnalysis({ trips }) {
         <div className="date-range-form">
           <label>From date<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
           <label>To date<input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
+          <button className="secondary-action date-reset" type="button" onClick={resetDateRange} disabled={!startDate && !endDate}>Reset dates</button>
         </div>
         {hasRange ? (
           <>

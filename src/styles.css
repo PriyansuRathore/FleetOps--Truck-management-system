@@ -893,6 +893,13 @@ label {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.trip-register-sections {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1fr);
+  margin-bottom: 22px;
+}
+
 .finance-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-bottom: 16px;
@@ -950,6 +957,10 @@ label {
   gap: 10px;
   grid-template-columns: repeat(2, minmax(160px, 1fr));
   margin-bottom: 12px;
+}
+
+.date-range-form .date-reset {
+  align-self: end;
 }
 
 .vehicle-note-selector .empty-state {
