@@ -754,7 +754,10 @@ export function DriversPage({ drivers, onNewEntry, onEditEntry, onRefresh }) {
               <small>Safety score</small>
               <b>{driver.hours}</b>
               <small>Drive hours</small>
+              <b>{formatMoney(driver.salary)}</b>
+              <small>Monthly salary</small>
             </div>
+            {driver.notes && <p className="profile-note">{driver.notes}</p>}
             <RecordActions resource="drivers" record={driver} onEdit={onEditEntry} onRefresh={onRefresh} />
           </article>
         ))}
@@ -938,7 +941,8 @@ export function FinancePage({ data, onNewEntry, onRefresh }) {
     ...(data.expenseNotes || []).filter((note) => !note.vehicle).map((note) => Number(note.amount || 0)),
     ...(data.maintenanceNotes || []).filter((note) => !note.vehicle).map((note) => Number(note.totalCost || 0)),
   ].reduce((sum, value) => sum + value, 0);
-  const expenseTotal = truckExpenseTotal + generalExpenseTotal;
+  const driverSalaryTotal = sumBy(data.drivers || [], "salary");
+  const expenseTotal = truckExpenseTotal + generalExpenseTotal + driverSalaryTotal;
   const completedTrips = getCompletedTrips(data);
   const runningTrips = getRunningTrips(data);
   const monthlyRows = [
@@ -970,6 +974,7 @@ export function FinancePage({ data, onNewEntry, onRefresh }) {
       <div className="trip-summary">
         <Stat label="Completed Trips" value={completedTrips.length} />
         <Stat label="Running Trips" value={runningTrips.length} />
+        <Stat label="Driver Salary" value={formatMoney(driverSalaryTotal)} />
         <Stat label="Running Trip P&L" value="Not booked" />
       </div>
       <Panel title="Completed Trip Cost Breakdown" icon={BarChart3}>

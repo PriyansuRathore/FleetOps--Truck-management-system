@@ -28,7 +28,9 @@ create table if not exists drivers (
   name text not null,
   score integer not null,
   hours text not null,
-  route text not null
+  route text not null,
+  salary numeric(12,2) default 0,
+  notes text
 );
 
 create table if not exists routes (
@@ -229,6 +231,8 @@ create table if not exists truck_reports (
 alter table metrics add column if not exists owner_id text;
 alter table vehicles add column if not exists owner_id text;
 alter table drivers add column if not exists owner_id text;
+alter table drivers add column if not exists salary numeric(12,2) default 0;
+alter table drivers add column if not exists notes text;
 alter table routes add column if not exists owner_id text;
 alter table loads add column if not exists owner_id text;
 alter table trips add column if not exists owner_id text;

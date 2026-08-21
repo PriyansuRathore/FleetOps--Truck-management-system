@@ -26,15 +26,18 @@ export function buildDashboardTotals(data) {
   const reportRevenue = sumBy(data.truckReports || [], "revenue");
   const reportExpense = sumBy(data.truckReports || [], "expense");
   const reportProfit = sumBy(data.truckReports || [], "profit");
+  const driverSalary = sumBy(data.drivers || [], "salary");
   const revenue = reportRevenue || sumBy(completedTrips, "totalFreight");
-  const expense = reportExpense || sumBy(completedTrips, "totalExpenses");
-  const profit = reportRevenue || reportExpense ? reportProfit : revenue - expense;
+  const directExpense = reportExpense || sumBy(completedTrips, "totalExpenses");
+  const expense = directExpense + driverSalary;
+  const profit = (reportRevenue || reportExpense ? reportProfit : revenue - directExpense) - driverSalary;
   const outstanding = tripSummaries.reduce((sum, trip) => sum + Number(trip.pending || 0), 0);
   const activeTrips = (runningTrips.length ? runningTrips : (data.trips || []).filter((trip) => !isCompletedTrip(trip))).length;
   return {
     revenue,
     expense,
     profit,
+    driverSalary,
     outstanding,
     activeTrips,
     totalTrucks: (data.vehicles || []).length,
@@ -72,6 +75,7 @@ export function buildFinanceBreakdown(data, totalExpense) {
 
   (data.expenseNotes || []).forEach((note) => addExpense(note.category || "other", note.amount));
   (data.maintenanceNotes || []).forEach((note) => addExpense("maintenance", note.totalCost));
+  (data.drivers || []).forEach((driver) => addExpense("driver salary", driver.salary));
 
   const vehiclesWithTripMaintenance = new Set(trips.filter((trip) => Number(trip.maintenanceExpense || 0) > 0).map((trip) => trip.vehicle));
   (data.maintenance || [])

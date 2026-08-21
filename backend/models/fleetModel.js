@@ -350,10 +350,10 @@ const collectionConfig = {
   },
   drivers: {
     table: "drivers",
-    columns: ["id", "name", "score", "hours", "route"],
+    columns: ["id", "name", "score", "hours", "route", "salary", "notes"],
     ownerScoped: true,
     fromApi(payload) {
-      return { ...payload, score: Number(payload.score || 0) };
+      return { ...payload, score: Number(payload.score || 0), salary: Number(payload.salary || 0) };
     },
   },
   vehicles: {
@@ -930,10 +930,11 @@ async function getDashboard(session = null, options = {}) {
   const completedTripSummaries = tripSummaries.filter(isCompletedTrip);
   const runningTripSummaries = tripSummaries.filter((trip) => !isCompletedTrip(trip));
   const dynamicTruckReports = computedTruckReportsFromTripSummaries({ vehicles, tripSummaries: completedTripSummaries, expenseNotes, maintenanceNotes, maintenance });
+  const driverSalaryExpense = drivers.reduce((sum, driver) => sum + Number(driver.salary || 0), 0);
   const globalExpense = [
     ...expenseNotes.filter((note) => !note.vehicle).map((note) => Number(note.amount || 0)),
     ...maintenanceNotes.filter((note) => !note.vehicle).map((note) => Number(note.totalCost || 0)),
-  ].reduce((sum, value) => sum + value, 0);
+  ].reduce((sum, value) => sum + value, 0) + driverSalaryExpense;
   const metrics = options.publicPreview
     ? await getCollection("metrics", session, options)
     : computedMetrics({ vehicles, routes, loads, maintenance, truckReports: dynamicTruckReports, trips, globalExpense });
@@ -968,6 +969,7 @@ async function getDashboard(session = null, options = {}) {
       projectedRevenue: `Rs.${(dynamicTruckReports.reduce((sum, row) => sum + Number(row.revenue || 0), 0) / 100000).toFixed(1)}L`,
       fuelExpense: `Rs.${(completedTripSummaries.reduce((sum, trip) => sum + (trip.fuelEntries.length ? trip.fuelEntries.reduce((fuelTotal, entry) => fuelTotal + Number(entry.totalAmount || 0), 0) : Number(trip.fuelExpense || 0)), 0) / 100000).toFixed(1)}L`,
       netProfit: `Rs.${((dynamicTruckReports.reduce((sum, row) => sum + Number(row.profit || 0), 0) - globalExpense) / 100000).toFixed(1)}L`,
+      driverSalary: `Rs.${(driverSalaryExpense / 100000).toFixed(1)}L`,
     },
   };
 }

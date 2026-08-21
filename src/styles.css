@@ -847,6 +847,17 @@ label {
   min-width: 0;
 }
 
+.profile-note {
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.4;
+  margin: 2px 0 0;
+  padding: 10px;
+  white-space: pre-wrap;
+}
+
 .metric-card:hover,
 .panel:hover,
 .profile-card:hover,

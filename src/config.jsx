@@ -72,6 +72,8 @@ export const entryConfigs = {
       ["score", "Safety score", "90"],
       ["hours", "Drive hours", "0h"],
       ["route", "Assigned route", "Delhi - Mumbai"],
+      ["salary", "Monthly salary", "0", "number"],
+      ["notes", "Driver notes", "Licence, payment or performance notes", "multiline"],
     ],
   },
   routes: {
