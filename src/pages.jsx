@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -471,6 +471,8 @@ function TripDateRangeAnalysis({ trips }) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [calendarKey, setCalendarKey] = useState(0);
+  const startDateRef = useRef(null);
+  const endDateRef = useRef(null);
   const hasRange = Boolean(startDate && endDate && startDate <= endDate);
   const selectedTrips = hasRange ? trips.filter((trip) => {
     const tripStart = trip.startDate || trip.endDate || "";
@@ -483,6 +485,9 @@ function TripDateRangeAnalysis({ trips }) {
   const expense = sumBy(completedTrips, "totalExpenses");
   const profit = revenue - expense;
   const resetDateRange = () => {
+    [startDateRef.current, endDateRef.current].forEach((input) => {
+      if (input) input.value = "";
+    });
     setStartDate("");
     setEndDate("");
     setCalendarKey((current) => current + 1);
@@ -492,8 +497,8 @@ function TripDateRangeAnalysis({ trips }) {
     <div className="split-grid">
       <Panel title="Trip Calendar Report" icon={CalendarClock}>
         <div className="date-range-form" key={calendarKey}>
-          <label>From date<input type="date" value={startDate} autoComplete="off" onChange={(event) => setStartDate(event.target.value)} /></label>
-          <label>To date<input type="date" value={endDate} autoComplete="off" onChange={(event) => setEndDate(event.target.value)} /></label>
+          <label>From date<input ref={startDateRef} type="date" value={startDate} autoComplete="off" onChange={(event) => setStartDate(event.target.value)} /></label>
+          <label>To date<input ref={endDateRef} type="date" value={endDate} autoComplete="off" onChange={(event) => setEndDate(event.target.value)} /></label>
           <button className="secondary-action date-reset" type="button" onClick={resetDateRange} disabled={!startDate && !endDate}>Reset dates</button>
         </div>
         {hasRange ? (
@@ -1110,6 +1115,9 @@ function TripSummary({ report }) {
 function DateRangeAnalysis({ data }) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [calendarKey, setCalendarKey] = useState(0);
+  const startDateRef = useRef(null);
+  const endDateRef = useRef(null);
   const hasRange = Boolean(startDate && endDate && startDate <= endDate);
   const inRange = (date) => hasRange && Boolean(date) && date >= startDate && date <= endDate;
   const allTrips = (data.tripSummaries || []).filter((trip) => inRange(trip.startDate));
@@ -1120,12 +1128,21 @@ function DateRangeAnalysis({ data }) {
   const noteExpense = (data.expenseNotes || []).filter((note) => inRange(note.noteDate)).reduce((sum, note) => sum + Number(note.amount || 0), 0);
   const maintenanceExpense = (data.maintenanceNotes || []).filter((note) => inRange(note.noteDate)).reduce((sum, note) => sum + Number(note.totalCost || 0), 0);
   const totalExpense = tripExpense + noteExpense + maintenanceExpense;
+  const resetDateRange = () => {
+    [startDateRef.current, endDateRef.current].forEach((input) => {
+      if (input) input.value = "";
+    });
+    setStartDate("");
+    setEndDate("");
+    setCalendarKey((current) => current + 1);
+  };
 
   return (
     <Panel title="Date-wise Profit & Trip Report" icon={CalendarClock}>
-      <div className="date-range-form">
-        <label>From date<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
-        <label>To date<input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
+      <div className="date-range-form" key={calendarKey}>
+        <label>From date<input ref={startDateRef} type="date" value={startDate} autoComplete="off" onChange={(event) => setStartDate(event.target.value)} /></label>
+        <label>To date<input ref={endDateRef} type="date" value={endDate} autoComplete="off" onChange={(event) => setEndDate(event.target.value)} /></label>
+        <button className="secondary-action date-reset" type="button" onClick={resetDateRange} disabled={!startDate && !endDate}>Reset dates</button>
       </div>
       {hasRange ? (
         <>

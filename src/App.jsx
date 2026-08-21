@@ -397,7 +397,14 @@ function NewEntryModal({ page, open, editingEntry, savedRoutes = [], vehicleNumb
     // Field examples are placeholders, never values to be saved as records.
     // This keeps a new trip (and every other new entry) empty until the user
     // explicitly enters its real details.
-    const nextForm = Object.fromEntries(config.fields.map(([key]) => [key, editingEntry?.[key] ?? ""]));
+    const nextForm = Object.fromEntries(config.fields.map(([key]) => {
+      // Trip summaries expose ledger notes as `notes`; preserve the original
+      // Trip Register note when opening the edit modal.
+      const value = config.collection === "trips" && key === "notes"
+        ? editingEntry?.registrationNotes ?? (typeof editingEntry?.notes === "string" ? editingEntry.notes : "")
+        : editingEntry?.[key];
+      return [key, value ?? ""];
+    }));
     if (!editingEntry) {
       if (config.collection === "trips") nextForm.status = "Running";
     }
