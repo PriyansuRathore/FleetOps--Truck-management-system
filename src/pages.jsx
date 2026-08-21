@@ -499,7 +499,7 @@ function TripDateRangeAnalysis({ trips }) {
         <div className="date-range-form" key={calendarKey}>
           <label>From date<input ref={startDateRef} type="date" value={startDate} autoComplete="off" onChange={(event) => setStartDate(event.target.value)} /></label>
           <label>To date<input ref={endDateRef} type="date" value={endDate} autoComplete="off" onChange={(event) => setEndDate(event.target.value)} /></label>
-          <button className="secondary-action date-reset" type="button" onClick={resetDateRange} disabled={!startDate && !endDate}>Reset dates</button>
+          <button className="secondary-action date-reset" type="button" onClick={resetDateRange}>Reset dates</button>
         </div>
         {hasRange ? (
           <>
@@ -1142,7 +1142,7 @@ function DateRangeAnalysis({ data }) {
       <div className="date-range-form" key={calendarKey}>
         <label>From date<input ref={startDateRef} type="date" value={startDate} autoComplete="off" onChange={(event) => setStartDate(event.target.value)} /></label>
         <label>To date<input ref={endDateRef} type="date" value={endDate} autoComplete="off" onChange={(event) => setEndDate(event.target.value)} /></label>
-        <button className="secondary-action date-reset" type="button" onClick={resetDateRange} disabled={!startDate && !endDate}>Reset dates</button>
+        <button className="secondary-action date-reset" type="button" onClick={resetDateRange}>Reset dates</button>
       </div>
       {hasRange ? (
         <>
