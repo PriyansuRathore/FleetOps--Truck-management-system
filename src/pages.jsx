@@ -740,7 +740,11 @@ function buildMoneyTimeline(trip) {
   });
 }
 
-export function DriversPage({ drivers, onNewEntry, onEditEntry, onRefresh }) {
+export function DriversPage({ drivers, payments = [], onNewEntry, onEditEntry, onRefresh }) {
+  const [selectedDriverId, setSelectedDriverId] = useState("");
+  const selectedDriver = drivers.find((driver) => driver.id === selectedDriverId) || drivers[0];
+  const driverPayments = payments.filter((payment) => payment.driverId === selectedDriver?.id);
+
   return (
     <Page title="Driver Management" kicker="People" onNewEntry={onNewEntry}>
       <div className="card-grid">
@@ -762,7 +766,70 @@ export function DriversPage({ drivers, onNewEntry, onEditEntry, onRefresh }) {
           </article>
         ))}
       </div>
+      <Panel title="Driver Payment Register" icon={IndianRupee}>
+        {drivers.length ? <>
+          <label className="driver-payment-select">
+            Select driver
+            <select value={selectedDriver?.id || ""} onChange={(event) => setSelectedDriverId(event.target.value)}>
+              {drivers.map((driver) => <option key={driver.id} value={driver.id}>{driver.name}</option>)}
+            </select>
+          </label>
+          <DriverPaymentForm driver={selectedDriver} onSaved={onRefresh} />
+          <DataTable
+            columns={["Date", "Driver", "Amount", "Payment note"]}
+            rows={driverPayments.map((payment) => [payment.paymentDate || "-", payment.driverName || selectedDriver.name, formatMoney(payment.amount), payment.notes || "-"])}
+          />
+        </> : <p className="empty-state">Add a driver before recording a payment.</p>}
+      </Panel>
     </Page>
+  );
+}
+
+function DriverPaymentForm({ driver, onSaved }) {
+  const emptyForm = () => ({ paymentDate: new Date().toISOString().slice(0, 10), amount: "", notes: "" });
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setForm(emptyForm());
+    setError("");
+  }, [driver?.id]);
+
+  async function save(event) {
+    event.preventDefault();
+    if (!form.paymentDate || !Number(form.amount)) {
+      setError("Choose a payment date and enter an amount.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const session = JSON.parse(localStorage.getItem("fleetops-session") || "{}");
+      const response = await fetch("/api/driverPayments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(session.token ? { Authorization: `Bearer ${session.token}` } : {}) },
+        body: JSON.stringify({ ...form, driverId: driver.id, driverName: driver.name }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Could not save driver payment");
+      setForm(emptyForm());
+      onSaved?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className="driver-payment-form" onSubmit={save} autoComplete="off">
+      <label>Payment date<input type="date" value={form.paymentDate} onChange={(event) => setForm((current) => ({ ...current, paymentDate: event.target.value }))} /></label>
+      <label>Amount<input type="number" min="0" value={form.amount} placeholder="0" onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))} /></label>
+      <label className="note-field">Payment note<textarea value={form.notes} rows={3} placeholder="Salary advance, bank transfer reference, or other payment note" onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} /></label>
+      <button className="primary-action" disabled={saving}><IndianRupee size={18} /> {saving ? "Saving..." : "Record payment"}</button>
+      {error && <p className="form-error">{error}</p>}
+    </form>
   );
 }
 

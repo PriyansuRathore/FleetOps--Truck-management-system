@@ -33,6 +33,15 @@ create table if not exists drivers (
   notes text
 );
 
+create table if not exists driver_payments (
+  id text primary key,
+  driver_id text not null,
+  driver_name text,
+  payment_date text not null,
+  amount numeric(12,2) default 0,
+  notes text
+);
+
 create table if not exists routes (
   id text primary key,
   origin text not null,
@@ -233,6 +242,7 @@ alter table vehicles add column if not exists owner_id text;
 alter table drivers add column if not exists owner_id text;
 alter table drivers add column if not exists salary numeric(12,2) default 0;
 alter table drivers add column if not exists notes text;
+alter table driver_payments add column if not exists owner_id text;
 alter table routes add column if not exists owner_id text;
 alter table loads add column if not exists owner_id text;
 alter table trips add column if not exists owner_id text;

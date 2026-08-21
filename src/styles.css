@@ -858,6 +858,24 @@ label {
   white-space: pre-wrap;
 }
 
+.driver-payment-select {
+  display: block;
+  margin-bottom: 12px;
+  max-width: 360px;
+}
+
+.driver-payment-form {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  margin-bottom: 16px;
+}
+
+.driver-payment-form .note-field,
+.driver-payment-form .form-error {
+  grid-column: 1 / -1;
+}
+
 .metric-card:hover,
 .panel:hover,
 .profile-card:hover,

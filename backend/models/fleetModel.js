@@ -356,6 +356,30 @@ const collectionConfig = {
       return { ...payload, score: Number(payload.score || 0), salary: Number(payload.salary || 0) };
     },
   },
+  driverPayments: {
+    table: "driver_payments",
+    columns: ["id", "driver_id", "driver_name", "payment_date", "amount", "notes"],
+    ownerScoped: true,
+    fromApi(payload) {
+      return {
+        ...payload,
+        driver_id: payload.driver_id ?? payload.driverId,
+        driver_name: payload.driver_name ?? payload.driverName,
+        payment_date: payload.payment_date ?? payload.paymentDate ?? new Date().toISOString().slice(0, 10),
+        amount: Number(payload.amount || 0),
+      };
+    },
+    toApi(row) {
+      return {
+        id: row.id,
+        driverId: row.driver_id,
+        driverName: row.driver_name,
+        paymentDate: row.payment_date,
+        amount: row.amount,
+        notes: row.notes,
+      };
+    },
+  },
   vehicles: {
     table: "vehicles",
     columns: ["id", "number", "model", "driver", "status", "odometer", "permit"],
@@ -891,6 +915,7 @@ async function getDashboard(session = null, options = {}) {
     routes,
     loads,
     drivers,
+    driverPayments,
     vehicles,
     maintenance,
     tolls,
@@ -910,6 +935,7 @@ async function getDashboard(session = null, options = {}) {
     getCollection("routes", session, options),
     getCollection("loads", session, options),
     getCollection("drivers", session, options),
+    getCollection("driverPayments", session, options).catch(() => []),
     getCollection("vehicles", session, options),
     getCollection("maintenance", session, options),
     getCollection("tolls", session, options),
@@ -945,6 +971,7 @@ async function getDashboard(session = null, options = {}) {
     routes,
     loads,
     drivers,
+    driverPayments,
     vehicles,
     maintenance,
     tolls,

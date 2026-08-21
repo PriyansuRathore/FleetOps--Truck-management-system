@@ -14,6 +14,7 @@ export const fallbackDashboard = {
   expenseNotes: [],
   maintenanceNotes: [],
   drivers: [],
+  driverPayments: [],
   vehicles: [],
   maintenance: [],
   tolls: [],
@@ -87,4 +88,3 @@ export function withPublicPreviewData(data = {}) {
   merged.financialSummary = { ...publicPreviewFallback.financialSummary, ...(data.financialSummary || {}) };
   return merged;
 }
-
